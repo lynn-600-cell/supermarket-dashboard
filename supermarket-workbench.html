@@ -19,6 +19,7 @@ Chart.defaults.font.family = "'Quicksand', 'Noto Sans SC', sans-serif";
 :root {
   --primary: #B794F6;
   --primary-light: #D4BFFF;
+  --neon-purple: #A78BFA;
   --primary-dark: #9B72CF;
   --primary-deep: #6B5B95;
   --accent: #F9A8D4;
@@ -702,6 +703,52 @@ tbody tr:hover {
   color: rgba(167,139,250,0.5);
 }
 
+.image-drop-zone {
+  position: relative;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  border: 2px dashed rgba(139,92,246,0.38);
+  border-radius: 12px;
+  background: rgba(139,92,246,0.035);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.image-drop-zone:hover {
+  border-color: rgba(139,92,246,0.62);
+  background: rgba(139,92,246,0.065);
+}
+
+.image-drop-zone.is-dragover {
+  border-color: var(--neon-purple);
+  background: rgba(139,92,246,0.12);
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.12), 0 0 18px rgba(139,92,246,0.28);
+  transform: translateY(-1px);
+}
+
+.image-drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.image-drop-zone-text {
+  pointer-events: none;
+  line-height: 1.65;
+}
+
+.image-drop-zone-text strong {
+  color: var(--primary-dark);
+}
+
 .form-select {
   cursor: pointer;
   appearance: none;
@@ -1107,6 +1154,10 @@ select::-ms-expand {
       <div class="nav-icon">&#9733;</div>
       <span class="nav-label">盒饭预定</span>
     </div>
+    <div class="nav-item" data-page="smart" onclick="switchPage('smart')">
+      <div class="nav-icon">&#9889;</div>
+      <span class="nav-label">智能录入</span>
+    </div>
   </nav>
   <div class="sidebar-footer">
     <div id="syncIndicator" class="sync-indicator sync-offline">
@@ -1138,17 +1189,6 @@ select::-ms-expand {
           <div class="stat-label">送菜本月收入</div>
           <div class="stat-value" id="statDeliveryMonth">--</div>
           <div class="stat-sub" id="statDeliveryMonthSub"></div>
-        </div>
-        <div class="stat-card orange">
-          <div class="stat-label">送菜待收款</div>
-          <div class="stat-value" id="statDeliveryPending">--</div>
-          <div class="stat-sub">累计未结金额</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="stat-label">盒饭本周份数</div>
-          <div class="stat-value" id="statMealWeek">--</div>
-          <div class="stat-sub" id="statMealWeekSub"></div>
-          <div class="stat-desc" id="statMealReceivedDesc" style="font-size:11px;color:var(--text-light);margin-top:2px;"></div>
         </div>
         <div class="stat-card red">
           <div class="stat-label">超市待付款金额</div>
@@ -1436,6 +1476,37 @@ select::-ms-expand {
       </div>
     </div>
 
+  <div class="page" id="page-smart">
+    <div style="margin-bottom:18px;">
+      <h1 style="margin:0 0 6px;font-size:24px;">智能录入</h1>
+      <p class="text-muted" style="margin:0;">把微信 / 供货商发来的消息粘贴到这里，自动识别类型、日期、金额、商品，确认后一键写入对应模块。支持一次粘贴多条（每行一条）。</p>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <label class="form-label" style="display:block;margin-bottom:8px;font-weight:600;">粘贴消息</label>
+      <textarea id="smartInput" class="form-input" style="width:100%;min-height:140px;resize:vertical;font-family:inherit;padding:10px;" placeholder="例：&#10;7月22日 恒宇 西红柿50斤 200元&#10;送菜 公司 7月21日 青菜 150元&#10;盒饭 7月22日 5份"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="smartParse()">解析消息</button>
+        <button class="btn btn-outline" onclick="smartClear()">清空</button>
+        <span class="text-muted" id="smartHint"></span>
+      </div>
+    </div>
+
+    <div id="smartResults"></div>
+
+    <details class="card" style="margin-top:18px;">
+      <summary style="cursor:pointer;font-weight:600;">解析规则说明</summary>
+      <ul style="margin:12px 0 0;line-height:1.9;">
+        <li>含「盒饭」或「N份」→ 写入 <b>盒饭</b>（单价默认 12 元）</li>
+        <li>含「送菜 / 配送 / 送餐」→ 写入 <b>公司送菜</b>（需金额）</li>
+        <li>其余（含供应商名+商品+斤/个/箱）→ 写入 <b>超市采购</b>，金额由明细合计</li>
+        <li>日期支持「今天 / 昨天 / 7月22日 / 2026-07-22」</li>
+        <li>金额取「N元 / ¥N / 共N元」；含「退 / 返 / 冲减」记为负数</li>
+        <li>识别不准的字段可在卡片里直接改，再点「确认录入」</li>
+      </ul>
+    </details>
+  </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -1502,7 +1573,10 @@ select::-ms-expand {
       </div>
       <div class="form-group">
         <label class="form-label">单据截图（可选）</label>
-        <input type="file" class="form-input" id="srImage" accept="image/*" onchange="handleSupplierImage(event)">
+        <div class="image-drop-zone" id="srImageDropZone">
+          <input type="file" id="srImage" accept="image/*" onchange="handleSupplierImage(event)" aria-label="选择供货商单据截图">
+          <div class="image-drop-zone-text"><strong>点击选择图片</strong>，或将图片拖到此处<br><small>仅支持图片文件</small></div>
+        </div>
         <div id="srImagePreview" style="margin-top:8px;"></div>
       </div>
     </div>
@@ -1602,7 +1676,10 @@ select::-ms-expand {
       </div>
       <div class="form-group">
         <label class="form-label">单据截图（可选）</label>
-        <input type="file" class="form-input" id="delImage" accept="image/*" onchange="handleDeliveryImage(event)">
+        <div class="image-drop-zone" id="delImageDropZone">
+          <input type="file" id="delImage" accept="image/*" onchange="handleDeliveryImage(event)" aria-label="选择送菜单据截图">
+          <div class="image-drop-zone-text"><strong>点击选择图片</strong>，或将图片拖到此处<br><small>仅支持图片文件</small></div>
+        </div>
         <div id="delImagePreview" style="margin-top:8px;"></div>
       </div>
     </div>
@@ -2114,7 +2191,7 @@ const PENDING_BILLS_SEED = [
   {id:"b11",supplier:"洪湖",month:"2026年5月",reconciled:true,sentToBoss:true,paid:false,amount:2081,note:""},
   {id:"b12",supplier:"林兴",month:"2026年4-5月",reconciled:true,sentToBoss:true,paid:true,amount:567,note:"已结款"},
   {id:"b13",supplier:"恒宇",month:"2026年3-5月",reconciled:true,sentToBoss:true,paid:true,paidDate:"2026-07-13",amount:1320.67,note:"扣退货",fundFromDelivery:true},
-  {id:"b14",supplier:"伊利牛奶",month:"2026年3-5月",reconciled:true,sentToBoss:true,paid:false,amount:2061,note:""},
+  {id:"b14",supplier:"鑫穗",month:"2026年3-5月",reconciled:true,sentToBoss:true,paid:false,amount:2061,note:""},
   {id:"b15",supplier:"百真汇",month:"2026年6月",reconciled:true,sentToBoss:true,paid:true,amount:618.26,note:"已扣5%返点，已结款"}
 ];
 
@@ -2128,7 +2205,9 @@ function matchSupplierName(input) {
   
   // 0. 错别字/旧名称映射
   const typoMap = {
-    '雪丽来': '雪利来'
+    '雪丽来': '雪利来',
+    '伊利牛奶': '鑫穗',
+    '伊利': '鑫穗'
   };
   if (typoMap[trimmed]) {
     return typoMap[trimmed];
@@ -2170,40 +2249,40 @@ function matchSupplierName(input) {
   return trimmed;
 }
 
-// 统一已有数据中的供货商名称（启动时自动执行）
+// 统一已有数据中的供货商名称（启动时自动执行；每次幂等检查，仅变化时保存）
 async function normalizeSupplierNames() {
-  const migrationKey = 'sw_supplier_normalized_v2';
-  if (localStorage.getItem(migrationKey)) return; // 已执行过，跳过
-  
   let changed = 0;
-  
+
   // 统一 sw_inventory 中的供货商名称
   const inventory = getData('sw_inventory');
+  let inventoryChanged = false;
   if (inventory && inventory.length > 0) {
     inventory.forEach(r => {
       const matched = matchSupplierName(r.supplier);
       if (matched !== r.supplier) {
         changed++;
+        inventoryChanged = true;
         r.supplier = matched;
       }
     });
-    await setData('sw_inventory', inventory);
+    if (inventoryChanged) await setData('sw_inventory', inventory);
   }
-  
+
   // 统一 sw_supplier（对账清单）中的供货商名称
   const bills = getData('sw_supplier');
+  let billsChanged = false;
   if (bills && bills.length > 0) {
     bills.forEach(b => {
       const matched = matchSupplierName(b.supplier);
       if (matched !== b.supplier) {
         changed++;
+        billsChanged = true;
         b.supplier = matched;
       }
     });
-    await setData('sw_supplier', bills);
+    if (billsChanged) await setData('sw_supplier', bills);
   }
-  
-  localStorage.setItem(migrationKey, 'done');
+
   if (changed > 0) {
     console.log('供货商名称统一完成，共修正 ' + changed + ' 条记录');
   }
@@ -2493,18 +2572,345 @@ async function setData(key, data) {
   }
 }
 
+function getSettingsObject() {
+  const settings = getData('sw_settings');
+  return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
+}
+
+function getDeletedBillIdSet() {
+  const settings = getSettingsObject();
+  return new Set(Array.isArray(settings.deletedBillIds) ? settings.deletedBillIds : []);
+}
+
+async function removeDeletedBillId(id) {
+  const settings = getSettingsObject();
+  const deletedBillIds = Array.isArray(settings.deletedBillIds) ? settings.deletedBillIds : [];
+  if (!deletedBillIds.includes(id)) return;
+  settings.deletedBillIds = deletedBillIds.filter(deletedId => deletedId !== id);
+  await setData('sw_settings', settings);
+}
+
 async function mergeSeed(key, seed) {
   const existing = getData(key);
-  if (existing.length === 0) {
-    await setData(key, seed);
-  } else {
-    // Merge by id: add items not already present
-    const ids = new Set(existing.map(i => i.id));
-    const newItems = seed.filter(i => !ids.has(i.id));
-    if (newItems.length > 0) {
-      await setData(key, [...existing, ...newItems]);
-    }
+  const deletedBillIds = key === 'sw_supplier' ? getDeletedBillIdSet() : new Set();
+  const filteredExisting = key === 'sw_supplier'
+    ? existing.filter(item => !deletedBillIds.has(item.id))
+    : existing;
+  const filteredSeed = key === 'sw_supplier'
+    ? seed.filter(item => !deletedBillIds.has(item.id))
+    : seed;
+  const ids = new Set(filteredExisting.map(item => item.id));
+  const newItems = filteredSeed.filter(item => !ids.has(item.id));
+  if (filteredExisting.length !== existing.length || newItems.length > 0) {
+    await setData(key, [...filteredExisting, ...newItems]);
   }
+}
+
+// 本地立即保障百真汇 7 月 10 日采购记录，不等待云端写入。
+const BAIZHENHUI_PURCHASE_0710_ID = 'ocr_baizhenhui_purchase_0710';
+const BAIZHENHUI_PURCHASE_0710_MIGRATED_KEY = 'sw_migrated_' + BAIZHENHUI_PURCHASE_0710_ID;
+const BAIZHENHUI_RETURN_0710_ID = 'ocr_baizhenhui_0710';
+const BAIZHENHUI_RETURN_0710_MIGRATED_KEY = 'sw_migrated_' + BAIZHENHUI_RETURN_0710_ID;
+const FANGYU_0710_IDS = ['ocr_fangyu_0710_0109', 'ocr_fangyu_0710_0110'];
+const FANGYU_0710_MIGRATED_KEY = 'sw_migrated_fangyu_0710_0109_0110_v1';
+const HENGYU_RETURN_0717_ID = 'ocr_hengyu_return_0717_0000117';
+const HENGYU_RETURN_0717_MIGRATED_KEY = 'sw_migrated_' + HENGYU_RETURN_0717_ID + '_v2';
+const XUELILAI_0714_ID = 'xuelilai_XD-20260714205';
+const DINGHE_0713_ID = 'dinghe_XF49MC00013544';
+const LIULIANG_0715_ID = 'liuliang_JD-20260715-0177';
+
+// 幂等补录/修正柳粮 2026-07-15 配送单；始终检查实际数据，不受旧迁移标记影响。
+async function ensureLiuliangPurchase0715() {
+  const key = 'sw_inventory';
+  const records = getData(key);
+  const expected = {
+    id: LIULIANG_0715_ID,
+    month: 7,
+    date: '2026-07-15',
+    supplier: '柳粮',
+    orderNo: 'JD-20260715-0177',
+    product: '纸陈克明高筋细面-纸陈克明高筋挂面-陈克明高筋玉带挂面-陈克明鸡蛋玉带挂面-康师傅米醋-康师傅油',
+    amount: 347.70,
+    quantity: 6,
+    quantityUnit: '项',
+    note: '6项，优惠0元',
+    payment: '未结',
+    payMethod: '',
+    payDate: '',
+    image: 'liuliang_JD-20260715-0177.jpg',
+    items: [
+      { name: '纸陈克明高筋细面', spec: '1kg', qty: 8, unit: '扎', price: 8.7, subtotal: 69.6 },
+      { name: '纸陈克明高筋挂面', spec: '1kg', qty: 7, unit: '扎', price: 8.7, subtotal: 60.9 },
+      { name: '陈克明高筋玉带挂面', spec: '1kg', qty: 8, unit: '扎', price: 8.7, subtotal: 69.6 },
+      { name: '陈克明鸡蛋玉带挂面', spec: '1kg', qty: 8, unit: '扎', price: 8.7, subtotal: 69.6 },
+      { name: '康师傅米醋', spec: '420ml', qty: 6, unit: '瓶', price: 4.5, subtotal: 27 },
+      { name: '康师傅油', spec: '2.5L', qty: 3, unit: '瓶', price: 17, subtotal: 51 }
+    ]
+  };
+  const matches = records.filter(record =>
+    record.id === LIULIANG_0715_ID || record.orderNo === expected.orderNo
+  );
+  const canonical = matches[0];
+  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const updated = [
+    updatedRecord,
+    ...records.filter(record =>
+      record !== canonical && record.id !== LIULIANG_0715_ID && record.orderNo !== expected.orderNo
+    )
+  ];
+  const changed = matches.length !== 1 || !canonical ||
+    JSON.stringify(canonical) !== JSON.stringify(updatedRecord);
+  if (changed) await setData(key, updated);
+  return changed;
+}
+
+// 幂等补录/修正鼎合 2026-07-13 进货单；按固定 id 和单号去重，并同步云端。
+async function ensureDinghePurchase0713() {
+  const key = 'sw_inventory';
+  const records = getData(key);
+  const expected = {
+    id: DINGHE_0713_ID, month: 7, date: '2026-07-13', supplier: '鼎合',
+    orderNo: 'XF49MC00013544', product: '商品（28箱）', amount: 852,
+    quantity: 28, quantityUnit: '箱',
+    note: '两页合计852元，无优惠', payment: '未结',
+    payMethod: '', payDate: '',
+    image: ['dinghe_XF49MC00013544_p1.jpg', 'dinghe_XF49MC00013544_p2.jpg']
+  };
+  const matches = records.filter(record => record.id === DINGHE_0713_ID || record.orderNo === expected.orderNo);
+  const canonical = matches[0];
+  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  delete updatedRecord.originalAmount;
+  delete updatedRecord.discountAmount;
+  const updated = [updatedRecord, ...records.filter(record => record !== canonical && record.id !== DINGHE_0713_ID && record.orderNo !== expected.orderNo)];
+  const changed = matches.length !== 1 || !canonical || JSON.stringify(canonical) !== JSON.stringify(updatedRecord);
+  if (changed) await setData(key, updated);
+  return changed;
+}
+
+// 幂等补录/修正雪利来 2026-07-14 进货单；按固定 id 和单号去重，并同步云端。
+async function ensureXuelilaiPurchase0714() {
+  const key = 'sw_inventory';
+  const records = getData(key);
+  const expected = {
+    id: XUELILAI_0714_ID,
+    month: 7,
+    date: '2026-07-14',
+    supplier: '雪利来',
+    orderNo: 'XD-20260714205',
+    product: '冷冻食品等（21种，727支）',
+    amount: 1316.29,
+    note: '21种，727支',
+    payment: '未结',
+    payMethod: '',
+    payDate: '',
+    image: [
+      'xuelilai_XD-20260714205_p1.jpg',
+      'xuelilai_XD-20260714205_p2.jpg',
+      'xuelilai_XD-20260714205_p3.jpg'
+    ]
+  };
+  const matches = records.filter(record =>
+    record.id === XUELILAI_0714_ID || record.orderNo === expected.orderNo
+  );
+  const canonical = matches[0];
+  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const updated = [
+    updatedRecord,
+    ...records.filter(record =>
+      record !== canonical && record.id !== XUELILAI_0714_ID && record.orderNo !== expected.orderNo
+    )
+  ];
+  const changed = matches.length !== 1 || !canonical ||
+    JSON.stringify(canonical) !== JSON.stringify(updatedRecord);
+  if (changed) await setData(key, updated);
+  return changed;
+}
+
+function ensureBaizhenhuiPurchase0710() {
+  const key = 'sw_inventory';
+  const records = getData(key);
+  if (records.some(r => r.id === BAIZHENHUI_PURCHASE_0710_ID)) {
+    localStorage.setItem(BAIZHENHUI_PURCHASE_0710_MIGRATED_KEY, '1');
+    return false;
+  }
+  if (localStorage.getItem(BAIZHENHUI_PURCHASE_0710_MIGRATED_KEY) === '1') return false;
+
+  const purchase = {
+    id: BAIZHENHUI_PURCHASE_0710_ID,
+    month: 7,
+    date: '2026-07-10',
+    supplier: '百真汇',
+    orderNo: 'XD260710000022',
+    product: '悠乐星-盐津铺子-湘翻天-加嘴猴等（33项）',
+    amount: 555.80,
+    note: '采购单4页，合计555.80元',
+    payment: '未结',
+    payMethod: '',
+    payDate: '',
+    image: [
+      'baizhenhui_0711_page1.jpg',
+      'baizhenhui_0711_page2.jpg',
+      'baizhenhui_0711_page3.jpg',
+      'baizhenhui_0711_page4.jpg'
+    ]
+  };
+  const updated = [purchase, ...records];
+  localCache[key] = updated;
+  localStorage.setItem(key, JSON.stringify(updated));
+  localStorage.setItem(BAIZHENHUI_PURCHASE_0710_MIGRATED_KEY, '1');
+  return true;
+}
+
+// 幂等补录/修正芳宇 2026-07-10 两张销售单；始终检查实际数据，不受旧迁移标记影响。
+async function ensureFangyu0710Records() {
+  const key = 'sw_inventory';
+  const records = getData(key);
+  const expectedRecords = [
+    {
+      id: 'ocr_fangyu_0710_0109',
+      month: 7,
+      date: '2026-07-10',
+      supplier: '芳宇',
+      orderNo: 'XS-26-07-10-0109',
+      product: '90g冷酸灵盐爽白牙膏-140g冷酸灵专研抗敏益生菌牙膏-冷酸灵健齿牙刷（赠品）',
+      amount: 159.60,
+      note: '',
+      payment: '未结',
+      payMethod: '',
+      payDate: '',
+      image: 'fangyu_0710_0109.jpg',
+      items: [
+        { name: '90g冷酸灵盐爽白牙膏', qty: 6, price: 5.95, subtotal: 47.6 },
+        { name: '140g冷酸灵专研抗敏益生菌牙膏', qty: 8, price: 14, subtotal: 112 },
+        { name: '冷酸灵健齿牙刷', qty: 12, price: 0, subtotal: 0, note: '赠品' }
+      ]
+    },
+    {
+      id: 'ocr_fangyu_0710_0110',
+      month: 7,
+      date: '2026-07-10',
+      supplier: '芳宇',
+      orderNo: 'XS-26-07-10-0110',
+      product: '900g奥妙深层洁净洗衣液-900g奥妙除菌除螨洗衣液-净白止血粉金桔洗洁精',
+      amount: 138,
+      note: '',
+      payment: '未结',
+      payMethod: '',
+      payDate: '',
+      image: 'fangyu_0710_0110.jpg',
+      items: [
+        { name: '900g奥妙深层洁净洗衣液', qty: 3, price: 8, subtotal: 24 },
+        { name: '900g奥妙除菌除螨洗衣液', qty: 3, price: 8, subtotal: 24 },
+        { name: '净白止血粉金桔洗洁精', qty: 10, price: 9, subtotal: 90 }
+      ]
+    }
+  ];
+  const targetIds = new Set(expectedRecords.map(record => record.id));
+  const targetOrderNos = new Set(expectedRecords.map(record => record.orderNo));
+  const canonicalRecords = expectedRecords.map(expected => {
+    const existing = records.find(record => record.id === expected.id || record.orderNo === expected.orderNo);
+    return existing ? { ...existing, ...expected } : expected;
+  });
+  const updated = [
+    ...canonicalRecords,
+    ...records.filter(record => !targetIds.has(record.id) && !targetOrderNos.has(record.orderNo))
+  ];
+  const changed = JSON.stringify(updated) !== JSON.stringify(records);
+
+  if (changed) await setData(key, updated);
+  localStorage.setItem(FANGYU_0710_MIGRATED_KEY, '1');
+  return changed;
+}
+
+// 保障恒宇 2026-07-17 退货记录存在；云端缺记录时忽略本地迁移标记并重新补录。
+async function ensureHengyuReturn0717() {
+  const key = 'sw_inventory';
+  const records = getData(key);
+  if (records.some(r => r.id === HENGYU_RETURN_0717_ID)) {
+    localStorage.setItem(HENGYU_RETURN_0717_MIGRATED_KEY, '1');
+    return false;
+  }
+
+  const record = {
+    id: HENGYU_RETURN_0717_ID,
+    month: 7,
+    date: '2026-07-17',
+    supplier: '恒宇',
+    orderNo: '0000117',
+    product: '老坛酸菜面-香辣牛肉面-小鸡炖蘑菇面（数量按原单）',
+    amount: -64.83,
+    note: '退货；原单单价填写错误，按确认金额64.83元录入',
+    payment: '未结',
+    payMethod: '',
+    payDate: '',
+    image: 'hengyu_return_0717_0000117.jpg',
+    suppressItemDetails: true,
+    items: [
+      { name: '老坛酸菜面', qty: 11, price: 0, subtotal: 0 },
+      { name: '香辣牛肉面', qty: 4, price: 0, subtotal: 0 },
+      { name: '小鸡炖蘑菇面', qty: 8, price: 0, subtotal: 0 }
+    ]
+  };
+  const updated = [record, ...records];
+  await setData(key, updated);
+  localStorage.setItem(HENGYU_RETURN_0717_MIGRATED_KEY, '1');
+  return true;
+}
+
+// 幂等补录/修正送菜单 2478112—2478115；更新同 id 记录、补齐缺失记录，并通过 setData 同步云端。
+async function ensureDelivery2478112To2478115() {
+  const key = 'sw_delivery';
+  const records = getData(key);
+  const expectedRecords = [
+    {
+      id: 'delivery_2478112', date: '2026-07-16', orderNo: '2478112',
+      product: '生姜-鹌鹑蛋-里脊肉-五花肉-鸡巴腿-土豆-黄花菜-阳光香菇-丝瓜-小豆腐',
+      amount: 126, image: 'delivery_2478112.jpeg'
+    },
+    {
+      id: 'delivery_2478113', date: '2026-07-20', orderNo: '2478113',
+      product: '酸菜-食用油-剁椒-土豆-酸菜-青菜类-鱿鱼-猪前肘-泥鳅-咖喱菜-西葫芦-白萝卜-佛手瓜-冬瓜-青椒',
+      amount: 498.10, image: 'delivery_2478113.jpeg'
+    },
+    {
+      id: 'delivery_2478114', date: '2026-07-20', orderNo: '2478114',
+      product: '梅肉-牛盖蘑菇-油桃-阳光菜-娃娃菜-凉粉',
+      amount: 96.58, image: 'delivery_2478114.jpeg'
+    },
+    {
+      id: 'delivery_2478115', date: '2026-07-21', orderNo: '2478115',
+      product: '大葱-小米辣-洋葱-黄瓜-青瓜-泡椒姜-牛肉-菜心-苦瓜-空心菜-老豆腐-鸡翅-西红柿-哈密瓜-油桃',
+      amount: 223.60, image: 'delivery_2478115.jpeg'
+    }
+  ];
+  const expectedById = new Map(expectedRecords.map(record => [record.id, record]));
+  const existingIds = new Set();
+  let changed = false;
+
+  const updated = records.map(record => {
+    const expected = expectedById.get(record.id);
+    if (!expected) return record;
+    existingIds.add(record.id);
+
+    const next = { ...record, ...expected };
+    if (Object.prototype.hasOwnProperty.call(next, 'note')) delete next.note;
+    const recordChanged = Object.keys(expected).some(keyName => record[keyName] !== expected[keyName]) ||
+      Object.prototype.hasOwnProperty.call(record, 'note');
+    if (recordChanged) changed = true;
+    return recordChanged ? next : record;
+  });
+
+  const additions = expectedRecords
+    .filter(record => !existingIds.has(record.id))
+    .map(record => ({ ...record, payDate: '' }));
+  if (additions.length > 0) {
+    updated.unshift(...additions);
+    changed = true;
+  }
+
+  if (!changed) return false;
+  await setData(key, updated);
+  return true;
 }
 
 async function initSeeds() {
@@ -2559,9 +2965,10 @@ async function initSeeds() {
     await setData('sw_inventory', ruinanRecords);
   }
 
-  // 对账录入：钟宏 2026年5月（3单汇总）
-  const bills = getData('sw_supplier');
-  if (!bills.find(b => b.id === 'ocr_bill_liuliang_05')) {
+  // 对账补录同样尊重已删除 ID，避免重启后复活
+  const deletedBillIds = getDeletedBillIdSet();
+  const bills = getData('sw_supplier').filter(b => !deletedBillIds.has(b.id));
+  if (!deletedBillIds.has('ocr_bill_liuliang_05') && !bills.find(b => b.id === 'ocr_bill_liuliang_05')) {
     bills.unshift({
       id: 'ocr_bill_liuliang_05',
       supplier: '钟宏',
@@ -2576,7 +2983,7 @@ async function initSeeds() {
   }
 
   // 对账录入：哲浩 2026年5月
-  if (!bills.find(b => b.id === 'ocr_bill_zhehao_05')) {
+  if (!deletedBillIds.has('ocr_bill_zhehao_05') && !bills.find(b => b.id === 'ocr_bill_zhehao_05')) {
     bills.unshift({
       id: 'ocr_bill_zhehao_05',
       supplier: '哲浩',
@@ -2631,11 +3038,14 @@ async function initSeeds() {
     await setData('sw_inventory', invAll);
   }
 
-  // OCR录入：百真汇退货 2026-07-10（含图片）
+  // OCR录入：百真汇退货 2026-07-10（含图片，仅迁移一次）
   const invAll2 = getData('sw_inventory');
-  if (!invAll2.find(r => r.id === 'ocr_baizhenhui_0710')) {
+  const hasBaizhenhuiReturn0710 = invAll2.some(r => r.id === BAIZHENHUI_RETURN_0710_ID);
+  if (hasBaizhenhuiReturn0710) {
+    localStorage.setItem(BAIZHENHUI_RETURN_0710_MIGRATED_KEY, '1');
+  } else if (!localStorage.getItem(BAIZHENHUI_RETURN_0710_MIGRATED_KEY)) {
     invAll2.unshift({
-      id: 'ocr_baizhenhui_0710',
+      id: BAIZHENHUI_RETURN_0710_ID,
       date: '2026-07-10',
       supplier: '百真汇',
       orderNo: '0002425',
@@ -2648,6 +3058,7 @@ async function initSeeds() {
       ]
     });
     await setData('sw_inventory', invAll2);
+    localStorage.setItem(BAIZHENHUI_RETURN_0710_MIGRATED_KEY, '1');
   }
 
   // OCR录入：送菜-土鸡蛋采购 2026-07-10（含图片）
@@ -2897,6 +3308,131 @@ function cleanNote(note) {
   return '';
 }
 
+function normalizeYearMonth(year, month) {
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  if (!y || !m || m < 1 || m > 12) return '';
+  return y + '-' + String(m).padStart(2, '0');
+}
+
+function monthKeyFromDate(dateStr) {
+  return dateStr ? String(dateStr).substring(0, 7) : '';
+}
+
+// 统一解析对账月份：支持 2026年4月、2026年4-5月、跨年、2026-04、4月等格式
+function parseBillMonths(monthText, fallbackYear) {
+  const defaultYear = fallbackYear || new Date().getFullYear();
+  const text = String(monthText || '').trim();
+  if (!text) return [];
+
+  const tokens = [];
+  const re = /(?:(\d{4})\s*(?:年|-|\/|\.)\s*)?(\d{1,2})\s*月?/g;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    const month = parseInt(match[2], 10);
+    if (month >= 1 && month <= 12) {
+      tokens.push({ year: match[1] ? parseInt(match[1], 10) : null, month });
+    }
+  }
+  if (!tokens.length) return [];
+
+  const first = tokens[0];
+  first.year = first.year || defaultYear;
+  if (tokens.length === 1) return [normalizeYearMonth(first.year, first.month)];
+
+  const last = tokens[tokens.length - 1];
+  last.year = last.year || first.year;
+  if (last.year === first.year && last.month < first.month) last.year += 1;
+
+  const months = [];
+  let y = first.year;
+  let m = first.month;
+  while (y < last.year || (y === last.year && m <= last.month)) {
+    months.push(normalizeYearMonth(y, m));
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months.filter(Boolean);
+}
+
+function buildSupplierBillMaps(bills) {
+  const paidMap = {};
+  const billNoteMap = {};
+  (bills || []).forEach(b => {
+    const months = parseBillMonths(b.month);
+    if (!months.length) return;
+    months.forEach(monthKey => {
+      const key = b.supplier + '_' + monthKey;
+      if (b.paid) paidMap[key] = b.paidDate || true;
+      if (b.note && b.note.includes('陈列')) {
+        if (!billNoteMap[key]) billNoteMap[key] = b.note;
+        else billNoteMap[key] += '；' + b.note;
+      }
+    });
+  });
+  return { paidMap, billNoteMap };
+}
+
+function isInventoryRecordMatchedByBill(rec, bill, billMonths) {
+  return !!rec && !!bill && rec.supplier === bill.supplier && billMonths.includes(monthKeyFromDate(rec.date));
+}
+
+async function syncAllPaidBillsToInventory() {
+  const paidBills = getData('sw_supplier').filter(bill => bill.paid);
+  let syncedCount = 0;
+  for (const bill of paidBills) {
+    syncedCount += await syncBillPaymentToInventory(bill);
+  }
+  return syncedCount;
+}
+
+async function syncBillPaymentToInventory(bill) {
+  const billMonths = parseBillMonths(bill.month);
+  if (!billMonths.length) return 0;
+  const records = getData('sw_inventory');
+  const channel = bill.payChannel || (bill.fundFromDelivery ? 'delivery' : 'boss');
+  let changed = 0;
+
+  records.forEach(rec => {
+    if (!isInventoryRecordMatchedByBill(rec, bill, billMonths)) return;
+    if (rec.sourceBillId && rec.sourceBillId !== bill.id) return;
+    if (rec.sourceBillId !== bill.id) {
+      rec.sourceBillSyncBackup = {
+        payment: rec.payment,
+        payMethod: rec.payMethod,
+        payDate: rec.payDate,
+        payChannel: rec.payChannel
+      };
+    }
+    rec.payment = '已结款';
+    rec.payDate = bill.paidDate || getNow();
+    rec.payChannel = channel;
+    rec.sourceBillId = bill.id;
+    changed++;
+  });
+
+  if (changed) await setData('sw_inventory', records);
+  return changed;
+}
+
+async function unsyncBillPaymentFromInventory(bill) {
+  const records = getData('sw_inventory');
+  let changed = 0;
+  records.forEach(rec => {
+    if (rec.sourceBillId !== bill.id) return;
+    const backup = rec.sourceBillSyncBackup || {};
+    ['payment', 'payMethod', 'payDate', 'payChannel'].forEach(field => {
+      if (Object.prototype.hasOwnProperty.call(backup, field) && backup[field] !== undefined) rec[field] = backup[field];
+      else delete rec[field];
+    });
+    delete rec.sourceBillId;
+    delete rec.sourceBillSyncBackup;
+    changed++;
+  });
+  if (changed) await setData('sw_inventory', records);
+  return changed;
+}
+
 function genId(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
 }
@@ -3007,9 +3543,25 @@ function closeConfirm() {
   confirmCallback = null;
 }
 
-function confirmAction() {
-  if (confirmCallback) confirmCallback();
-  closeConfirm();
+async function confirmAction() {
+  const cb = confirmCallback;
+  if (!cb) {
+    closeConfirm();
+    return;
+  }
+
+  const btn = document.getElementById('confirmBtn');
+  if (btn) btn.disabled = true;
+
+  try {
+    await cb();
+    closeConfirm();
+  } catch (err) {
+    console.error('确认操作失败:', err);
+    showToast('操作失败：' + (err && err.message ? err.message : '请稍后重试'), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ======================== MODAL ========================
@@ -3122,61 +3674,6 @@ function refreshDashboard() {
   });
   document.getElementById('statDeliveryMonth').textContent = formatMoney(monthIncome);
   document.getElementById('statDeliveryMonthSub').textContent = monthCount + '笔';
-
-  // Delivery pending (negative amounts = returns subtract, positive = income; pending = all amounts where payment not settled... simplified: just show total outstanding)
-  // For simplicity, pending = sum of all un-reconciled amounts. Since delivery records don't have a payment status,
-  // we'll just show the current month total as "pending collection"
-  let pendingAmount = 0;
-  deliveries.forEach(d => {
-    if (isThisMonth(d.date)) pendingAmount += d.amount;
-  });
-  document.getElementById('statDeliveryPending').textContent = formatMoney(pendingAmount);
-
-  // Meal this week
-  const meals = getData('sw_meal');
-  let weekQty = 0, weekAmt = 0;
-  meals.forEach(m => {
-    if (isThisWeek(m.date)) {
-      weekQty += m.quantity;
-      weekAmt += m.totalAmount;
-    }
-  });
-  document.getElementById('statMealWeek').textContent = weekQty;
-  document.getElementById('statMealWeekSub').textContent = '金额 ' + formatMoney(weekAmt) + ' 元';
-
-  // 上周盒饭收款状态
-  const settings = getData('sw_settings') || {};
-  const now = new Date();
-  const dayOfWeek = now.getDay() || 7; // 周日=7
-  const lastMonday = new Date(now);
-  lastMonday.setDate(now.getDate() - dayOfWeek - 7 + 1); // 上周一
-  const lastSunday = new Date(lastMonday);
-  lastSunday.setDate(lastMonday.getDate() + 6); // 上周日
-  const lastWeekKey = lastMonday.getFullYear() + '-W' + getWeekNumber(lastMonday);
-  
-  // 上周盒饭统计
-  const records = getData('sw_meal');
-  let lastWeekQty = 0, lastWeekAmt = 0;
-  records.forEach(r => {
-    const d = new Date(r.date);
-    if (d >= lastMonday && d <= lastSunday) {
-      lastWeekQty += r.quantity;
-      lastWeekAmt += r.totalAmount;
-    }
-  });
-  
-  const receivedDesc = document.getElementById('statMealReceivedDesc');
-  if (settings.mealWeekReceived === lastWeekKey) {
-    receivedDesc.textContent = `上周${lastWeekQty}份 ¥${lastWeekAmt} 已收款 ✓`;
-    receivedDesc.style.color = 'var(--success)';
-  } else if (lastWeekQty > 0) {
-    receivedDesc.textContent = `上周${lastWeekQty}份 ¥${lastWeekAmt} 待收款（点击标记）`;
-    receivedDesc.style.color = 'var(--warning)';
-    receivedDesc.style.cursor = 'pointer';
-    receivedDesc.onclick = function() { toggleMealWeekReceived(lastWeekKey); };
-  } else {
-    receivedDesc.textContent = '';
-  }
 
   // Supplier pending (bills not paid) - show total amount
   const bills = getData('sw_supplier');
@@ -3321,10 +3818,13 @@ function renderDeliveryChart() {
 
 let pendingSupplierImage = '';
 
-function handleSupplierImage(event) {
-  const file = event.target.files[0];
+function processSupplierImage(file) {
   if (!file) return;
-  
+  if (!file.type || !file.type.startsWith('image/')) {
+    showToast('仅支持上传图片文件', 'error');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = function(e) {
     // 压缩图片
@@ -3355,6 +3855,15 @@ function handleSupplierImage(event) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function handleSupplierImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type || !file.type.startsWith('image/')) {
+    event.target.value = '';
+  }
+  processSupplierImage(file);
 }
 
 function removeSupplierImage() {
@@ -3482,6 +3991,8 @@ function openSupplierModal(editId) {
       document.getElementById('srItemsBody').innerHTML = '';
       items.forEach(item => addSupplierItemRow(item));
       calcSupplierAmount();
+      // 明细未可靠拆价时仍展示用户确认的总额，避免零价明细覆盖总额。
+      if (rec.suppressItemDetails) document.getElementById('srAmount').value = formatMoney(rec.amount);
 
       // Load image if exists
       if (rec.image) {
@@ -3656,82 +4167,8 @@ function renderSupplierRecords() {
   const filterSup = document.getElementById('supplierFilter').value;
   const filterMonth = document.getElementById('supplierMonthFilter').value;
 
-  // 构建已结款映射：supplier + year-month -> paid
-  const paidMap = {};
-  // 构建对账备注映射：supplier + year-month -> note
-  const billNoteMap = {};
-  bills.forEach(b => {
-    if (b.paid) {
-      // month 格式如 "2026年4月" 或 "2026年4-5月" 或 "2025年12月-2026年4月"
-      const crossYearMatch = b.month.match(/(\d{4})年(\d{1,2})月-(\d{4})年(\d{1,2})月/);
-      const sameYearMatch = !crossYearMatch && b.month.match(/(\d{4})年(\d{1,2})-(\d{1,2})月/);
-      const singleMatch = !crossYearMatch && !sameYearMatch && b.month.match(/(\d{4})年(\d{1,2})月/);
-      
-      const months = [];
-      if (crossYearMatch) {
-        const startYear = parseInt(crossYearMatch[1]);
-        const startMonth = parseInt(crossYearMatch[2]);
-        const endYear = parseInt(crossYearMatch[3]);
-        const endMonth = parseInt(crossYearMatch[4]);
-        let y = startYear, m = startMonth;
-        while (y < endYear || (y === endYear && m <= endMonth)) {
-          months.push({ supplier: b.supplier, y, m });
-          m++;
-          if (m > 12) { m = 1; y++; }
-        }
-      } else if (sameYearMatch) {
-        const year = sameYearMatch[1];
-        const startMonth = parseInt(sameYearMatch[2]);
-        const endMonth = parseInt(sameYearMatch[3]);
-        for (let m = startMonth; m <= endMonth; m++) {
-          months.push({ supplier: b.supplier, y: parseInt(year), m });
-        }
-      } else if (singleMatch) {
-        months.push({ supplier: b.supplier, y: parseInt(singleMatch[1]), m: parseInt(singleMatch[2]) });
-      }
-      
-      months.forEach(({ supplier, y, m }) => {
-        const key = supplier + '_' + y + '-' + String(m).padStart(2, '0');
-        paidMap[key] = b.paidDate || true;
-      });
-    }
-    
-    // 无论是否已转款，都收集对账备注（陈列费等信息）
-    if (b.note && b.note.includes('陈列')) {
-      const crossYearMatch = b.month.match(/(\d{4})年(\d{1,2})月-(\d{4})年(\d{1,2})月/);
-      const sameYearMatch = !crossYearMatch && b.month.match(/(\d{4})年(\d{1,2})-(\d{1,2})月/);
-      const singleMatch = !crossYearMatch && !sameYearMatch && b.month.match(/(\d{4})年(\d{1,2})月/);
-      
-      const months = [];
-      if (crossYearMatch) {
-        const startYear = parseInt(crossYearMatch[1]);
-        const startMonth = parseInt(crossYearMatch[2]);
-        const endYear = parseInt(crossYearMatch[3]);
-        const endMonth = parseInt(crossYearMatch[4]);
-        let y = startYear, m = startMonth;
-        while (y < endYear || (y === endYear && m <= endMonth)) {
-          months.push({ supplier: b.supplier, y, m });
-          m++;
-          if (m > 12) { m = 1; y++; }
-        }
-      } else if (sameYearMatch) {
-        const year = sameYearMatch[1];
-        const startMonth = parseInt(sameYearMatch[2]);
-        const endMonth = parseInt(sameYearMatch[3]);
-        for (let m = startMonth; m <= endMonth; m++) {
-          months.push({ supplier: b.supplier, y: parseInt(year), m });
-        }
-      } else if (singleMatch) {
-        months.push({ supplier: b.supplier, y: parseInt(singleMatch[1]), m: parseInt(singleMatch[2]) });
-      }
-      
-      months.forEach(({ supplier, y, m }) => {
-        const key = supplier + '_' + y + '-' + String(m).padStart(2, '0');
-        if (!billNoteMap[key]) billNoteMap[key] = b.note;
-        else billNoteMap[key] += '；' + b.note;
-      });
-    }
-  });
+  // 结款状态和对账备注共用统一月份解析。
+  const { paidMap, billNoteMap } = buildSupplierBillMaps(bills);
 
   let filtered = records.filter(r => {
     if (filterSup && r.supplier !== filterSup) return false;
@@ -3764,12 +4201,13 @@ function renderSupplierRecords() {
     const hasItems = r.items && r.items.length > 0;
     const isExpanded = invExpandedSet.has(r.id);
     
-    // 根据对账清单判断结款状态
+    // 记录自身的已结款状态优先；对账映射用于兼容尚未写回的历史数据。
     const yearMonth = r.date ? r.date.substring(0, 7) : ''; // "2026-04"
     const paidKey = r.supplier + '_' + yearMonth;
     const paidValue = paidMap[paidKey];
-    const isPaid = !!paidValue;
-    const paidDate = typeof paidValue === 'string' ? paidValue : '';
+    const isRecordPaid = r.payment === '已结款';
+    const isPaid = isRecordPaid || !!paidValue;
+    const paidDate = r.payDate || (typeof paidValue === 'string' ? paidValue : '');
     const billNote = billNoteMap[paidKey]; // 对账清单中的扣除信息（如陈列费）
     
     let payVal, badgeClass;
@@ -3800,8 +4238,8 @@ function renderSupplierRecords() {
       '<td>' + cleanNote(r.note || '') + (billNote ? '<br><small style="color:var(--warning-text);">对账：' + billNote + '</small>' : '') + '</td>' +
       '<td>' + payBadgeHtml + '</td>' +
       '<td><div class="btn-group">' +
-        '<button class="btn btn-sm btn-outline" onclick="openSupplierModal(\''+r.id+'\')">编辑</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="deleteSupplierRecord(\''+r.id+'\')">删除</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openSupplierModal(\''+r.id+'\')">编辑</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSupplierRecord(\''+r.id+'\')">删除</button>' +
       '</div></td>' +
     '</tr>';
   });
@@ -3829,6 +4267,17 @@ function loadMoreSupplierRecords() {
 function clearMonthFilter() {
   document.getElementById('supplierMonthFilter').value = '';
   renderSupplierRecords();
+}
+
+function showPaidBillInventoryRecords(bill) {
+  const months = parseBillMonths(bill.month);
+  const latestMonth = months.length ? months[months.length - 1] : '';
+  const supplierFilter = document.getElementById('supplierFilter');
+  const monthFilter = document.getElementById('supplierMonthFilter');
+  if (supplierFilter) supplierFilter.value = bill.supplier;
+  if (monthFilter) monthFilter.value = latestMonth;
+  switchPage('purchase');
+  switchSubTab('purchase', 'purchase-records');
 }
 
 // 切换结款状态（带确认）
@@ -3877,9 +4326,13 @@ function deleteSupplierRecord(id) {
     const records = getData('sw_inventory');
     const rec = records.find(r => r.id === id);
     const recInfo = rec ? `${rec.supplier} ¥${rec.amount}` : '';
+    const updatedRecords = records.filter(r => r.id !== id);
+    if (updatedRecords.length === records.length) {
+      showToast('未找到要删除的记录', 'error');
+      return;
+    }
     
-    records = records.filter(r => r.id !== id);
-    await setData('sw_inventory', records);
+    await setData('sw_inventory', updatedRecords);
     renderSupplierRecords();
     showToast('记录已删除');
     addActivity('删除进货记录: ' + recInfo, '记录ID: ' + id);
@@ -3944,8 +4397,10 @@ async function saveBill() {
       addActivity('更新对账: ' + supplier + ' ' + month);
     }
   } else {
+    const newId = genId('b');
+    await removeDeletedBillId(newId);
     bills.unshift({
-      id: genId('b'),
+      id: newId,
       supplier, month, amount, reconciled, sentToBoss, paid, paidDate, note
     });
     showToast('对账记录已添加');
@@ -4018,7 +4473,7 @@ function renderPendingBills() {
       '<td class="text-muted">' + (b.note || '-') + '</td>' +
       '<td><div class="btn-group">' +
         '<button class="btn btn-sm btn-outline" onclick="openBillModal(\''+b.id+'\')">编辑</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="deleteBill(\''+b.id+'\')">删除</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteBill(\''+b.id+'\')">删除</button>' +
       '</div></td>' +
     '</tr>'
   ).join('');
@@ -4061,13 +4516,14 @@ async function toggleBillStatus(id, field) {
       bill[field] = true;
       bill.payChannel = channel;
       bill.fundFromDelivery = channel === 'delivery';
-      if (!bill.paidDate) bill.paidDate = new Date().toISOString().split('T')[0];
-      
+      if (!bill.paidDate) bill.paidDate = getNow();
+
+      const syncedCount = await syncBillPaymentToInventory(bill);
       await setData('sw_supplier', bills);
       renderPendingBills();
-      renderSupplierRecords();
       refreshDashboard();
-      showToast('已标记为已转款（' + (channel === 'delivery' ? '送菜收入' : '老板转款') + '）');
+      showPaidBillInventoryRecords(bill);
+      showToast('已标记为已转款（' + (channel === 'delivery' ? '送菜收入' : '老板转款') + '），同步 ' + syncedCount + ' 条进退货记录');
     };
     return;
   }
@@ -4076,18 +4532,20 @@ async function toggleBillStatus(id, field) {
     // 切换状态
     bill[field] = !bill[field];
     
-    // 如果取消已转款
+    // 取消已转款时，只撤销由当前 bill 同步的进退货记录。
+    let unsyncedCount = 0;
     if (field === 'paid' && !bill.paid) {
+      unsyncedCount = await unsyncBillPaymentFromInventory(bill);
       delete bill.paidDate;
       delete bill.fundFromDelivery;
       delete bill.payChannel;
     }
-    
+
     await setData('sw_supplier', bills);
     renderPendingBills();
     renderSupplierRecords();
     refreshDashboard();
-    showToast('状态已切换');
+    showToast(field === 'paid' ? '已取消转款，同步撤销 ' + unsyncedCount + ' 条进退货记录' : '状态已切换');
   });
 }
 
@@ -4129,9 +4587,18 @@ async function addDeliveryFund() {
 
 function deleteBill(id) {
   showConfirm('确认删除此对账记录？', async function() {
-    let bills = getData('sw_supplier');
-    bills = bills.filter(b => b.id !== id);
-    await setData('sw_supplier', bills);
+    const bills = getData('sw_supplier');
+    const updatedBills = bills.filter(b => b.id !== id);
+    if (updatedBills.length === bills.length) {
+      showToast('未找到要删除的对账记录', 'error');
+      return;
+    }
+    const settings = getSettingsObject();
+    const deletedBillIds = Array.isArray(settings.deletedBillIds) ? settings.deletedBillIds : [];
+    if (!deletedBillIds.includes(id)) deletedBillIds.push(id);
+    settings.deletedBillIds = deletedBillIds;
+    await setData('sw_settings', settings);
+    await setData('sw_supplier', updatedBills);
     renderPendingBills();
     showToast('对账记录已删除');
     addActivity('删除了一条对账记录');
@@ -4142,10 +4609,13 @@ function deleteBill(id) {
 
 let pendingDeliveryImage = '';
 
-function handleDeliveryImage(event) {
-  const file = event.target.files[0];
+function processDeliveryImage(file) {
   if (!file) return;
-  
+  if (!file.type || !file.type.startsWith('image/')) {
+    showToast('仅支持上传图片文件', 'error');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = function(e) {
     // 压缩图片
@@ -4176,6 +4646,15 @@ function handleDeliveryImage(event) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function handleDeliveryImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type || !file.type.startsWith('image/')) {
+    event.target.value = '';
+  }
+  processDeliveryImage(file);
 }
 
 function removeDeliveryImage() {
@@ -4347,7 +4826,7 @@ function renderDeliveryRecords() {
       '<td class="' + amountClass(r.amount) + '">' + formatMoney(r.amount) + '</td>' +
       '<td><div class="btn-group">' +
         '<button class="btn btn-sm btn-outline" onclick="openDeliveryModal(\''+r.id+'\')">编辑</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="deleteDeliveryRecord(\''+r.id+'\')">删除</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteDeliveryRecord(\''+r.id+'\')">删除</button>' +
       '</div></td>' +
     '</tr>';
   });
@@ -4432,9 +4911,13 @@ async function toggleLastMonthReceived() {
 
 function deleteDeliveryRecord(id) {
   showConfirm('确认删除此送菜记录？', async function() {
-    let records = getData('sw_delivery');
-    records = records.filter(r => r.id !== id);
-    await setData('sw_delivery', records);
+    const records = getData('sw_delivery');
+    const updatedRecords = records.filter(r => r.id !== id);
+    if (updatedRecords.length === records.length) {
+      showToast('未找到要删除的送菜记录', 'error');
+      return;
+    }
+    await setData('sw_delivery', updatedRecords);
     renderDeliveryRecords();
     renderDeliveryStats();
     showToast('记录已删除');
@@ -4592,7 +5075,7 @@ function renderMealRecords() {
       '<td class="text-muted">' + (r.notes || '-') + '</td>' +
       '<td><div class="btn-group">' +
         '<button class="btn btn-sm btn-outline" onclick="openMealModal(\''+r.id+'\')">编辑</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="deleteMealRecord(\''+r.id+'\')">删除</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteMealRecord(\''+r.id+'\')">删除</button>' +
       '</div></td>' +
     '</tr>'
   ).join('');
@@ -4668,14 +5151,49 @@ function renderMealStats() {
 
 function deleteMealRecord(id) {
   showConfirm('确认删除此盒饭记录？', async function() {
-    let records = getData('sw_meal');
-    records = records.filter(r => r.id !== id);
-    await setData('sw_meal', records);
+    const records = getData('sw_meal');
+    const updatedRecords = records.filter(r => r.id !== id);
+    if (updatedRecords.length === records.length) {
+      showToast('未找到要删除的盒饭记录', 'error');
+      return;
+    }
+    await setData('sw_meal', updatedRecords);
     renderMealRecords();
     renderMealStats();
     showToast('记录已删除');
     addActivity('删除了一条盒饭记录');
   });
+}
+
+function setupImageDropZone(zoneId, inputId, processFile) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  if (!zone || !input) return;
+
+  ['dragenter', 'dragover'].forEach(type => {
+    zone.addEventListener(type, function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.add('is-dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(type => {
+    zone.addEventListener(type, function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.remove('is-dragover');
+    });
+  });
+  zone.addEventListener('drop', function(e) {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) return;
+    processFile(files[0]);
+  });
+}
+
+function setupImageDropZones() {
+  setupImageDropZone('srImageDropZone', 'srImage', processSupplierImage);
+  setupImageDropZone('delImageDropZone', 'delImage', processDeliveryImage);
 }
 
 // ======================== INIT ========================
@@ -4692,8 +5210,24 @@ function updateDates() {
 
 async function init() {
   await initCloudSync();
+  setupImageDropZones();
+
+  // 云同步后立即补录并展示恒宇退货，避免后续异步种子保存阻塞首屏可见性。
+  await ensureHengyuReturn0717();
+  const monthFilter = document.getElementById('supplierMonthFilter');
+  if (monthFilter) monthFilter.value = '2026-07';
+  renderSupplierRecords();
+
   await initSeeds();
+  await ensureDelivery2478112To2478115();
+  await ensureLiuliangPurchase0715();
+  await ensureXuelilaiPurchase0714();
+  await ensureDinghePurchase0713();
+  ensureBaizhenhuiPurchase0710();
+  await ensureFangyu0710Records();
+
   await normalizeSupplierNames(); // 统一供货商名称
+  await syncAllPaidBillsToInventory(); // 补齐历史已转款对账对应的进退货结款记录
   populateSupplierSelects();
   updateDates();
 
@@ -4712,9 +5246,9 @@ async function init() {
     localStorage.setItem('sw_chengxin_fund_v1', '1');
   }
 
-  // 默认筛选当月数据
-  const monthFilter = document.getElementById('supplierMonthFilter');
-  if (monthFilter) monthFilter.value = getNow().substring(0, 7);
+  // 保持默认显示 2026 年 7 月数据
+  if (monthFilter) monthFilter.value = '2026-07';
+  renderSupplierRecords();
 
   refreshDashboard();
   renderDeliveryStats();
@@ -4737,8 +5271,250 @@ async function init() {
   });
 }
 
+// ======================== 智能录入（微信/供货商消息自动解析） ========================
+PAGE_TITLES['smart'] = '智能录入';
+
+let smartList = [];
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function fmtDateObj(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function escapeHtml(s) { return (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function smartExtractDate(text) {
+  const today = new Date();
+  if (/今天/.test(text)) return fmtDateObj(today);
+  if (/昨天/.test(text)) { const d = new Date(today); d.setDate(today.getDate() - 1); return fmtDateObj(d); }
+  let m = text.match(/(\d{4})[年\-\/](\d{1,2})[月\-\/](\d{1,2})/);
+  if (m) return m[1] + '-' + pad2(m[2]) + '-' + pad2(m[3]);
+  m = text.match(/(\d{1,2})月(\d{1,2})[日号]?/);
+  if (m) return today.getFullYear() + '-' + pad2(m[1]) + '-' + pad2(m[2]);
+  return fmtDateObj(today);
+}
+
+function smartExtractAmount(text) {
+  const neg = /退|返|冲减|退款/.test(text);
+  let m = text.match(/(?:合计|共|总计|小计|金额|应付|应收)[¥￥]?\s*(\d+(?:\.\d+)?)/);
+  if (!m) m = text.match(/[¥￥]\s*(\d+(?:\.\d+)?)/);
+  if (!m) m = text.match(/(\d+(?:\.\d+)?)\s*元/);
+  if (!m) m = text.match(/(\d+(?:\.\d+)?)\s*块/);
+  if (!m) m = text.match(/(?:金额|单价)[:：]?\s*(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const v = parseFloat(m[1]);
+  return neg ? -v : v;
+}
+
+function smartExtractSupplier(text) {
+  if (typeof SUPPLIERS !== 'undefined' && Array.isArray(SUPPLIERS)) {
+    for (const s of SUPPLIERS) { if (s && text.includes(s)) return matchSupplierName(s); }
+  }
+  const cleaned = text.replace(/今天|昨天|\d{4}[年\-/]\d{1,2}[月\-/]\d{1,2}|\d{1,2}月\d{1,2}[日号]?|[0-9.]+元|[0-9.]+块|[¥￥]\d+|\d+份|\d+斤|\d+个|\d+箱|送菜|配送|送餐|盒饭|采购|进货|退货|公司|共|合计|总计|合计|退回|冲减/g, ' ').trim();
+  const tok = cleaned.split(/\s+/)[0];
+  return tok ? matchSupplierName(tok) : null;
+}
+
+function smartParseItems(text) {
+  const re = /([一-龥A-Za-z0-9]+?)(\d+(?:\.\d+)?)(斤|个|箱|袋|包|瓶|根|把|份|kg|KG|克|只|条|筐|桶)/g;
+  const items = []; let m;
+  while ((m = re.exec(text)) !== null) {
+    items.push({ name: m[1], qty: parseFloat(m[2]), unit: m[3] });
+  }
+  return items;
+}
+
+function detectSmartType(text) {
+  if (/盒饭/.test(text) || (/\d+\s*份/.test(text) && !/送菜|配送|送餐/.test(text))) return 'meal';
+  if (/送菜|配送|送餐/.test(text)) return 'delivery';
+  return 'inventory';
+}
+
+function parseWeChatMessage(raw) {
+  const text = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  const type = detectSmartType(text);
+  const date = smartExtractDate(text);
+  const result = { raw: raw, type: type, date: date };
+
+  if (type === 'meal') {
+    const qm = text.match(/(\d+)\s*份/);
+    const quantity = qm ? parseInt(qm[1], 10) : 1;
+    result.quantity = quantity;
+    result.unitPrice = 12;
+    result.totalAmount = quantity * 12;
+    result.note = '智能录入';
+    return result;
+  }
+
+  if (type === 'delivery') {
+    const amount = smartExtractAmount(text);
+    const product = text
+      .replace(/今天|昨天|\d{4}[年\-/]\d{1,2}[月\-/]\d{1,2}|\d{1,2}月\d{1,2}[日号]?/g, ' ')
+      .replace(/[0-9.]+元|[0-9.]+块|[¥￥]\d+|共|合计|总计|送菜|配送|送餐|公司|退回|冲减/g, ' ')
+      .replace(/\d+(?:\.\d+)?/g, ' ').trim() || '送菜';
+    result.product = product;
+    result.amount = amount;
+    result.note = '智能录入';
+    return result;
+  }
+
+  // inventory（采购/退货）
+  const supplier = smartExtractSupplier(text) || '未识别';
+  const amount = smartExtractAmount(text);
+  const rawItems = smartParseItems(text);
+  let items = [];
+  if (rawItems.length) {
+    if (amount != null && rawItems.length > 1) {
+      const totalQty = rawItems.reduce((s, i) => s + i.qty, 0);
+      items = rawItems.map(it => {
+        const subtotal = totalQty ? amount * it.qty / totalQty : 0;
+        return { name: it.name, qty: it.qty, price: it.qty ? +(subtotal / it.qty).toFixed(2) : 0, subtotal: +subtotal.toFixed(2) };
+      });
+    } else if (rawItems.length === 1 && amount != null) {
+      const it = rawItems[0];
+      const price = it.qty ? amount / it.qty : amount;
+      items = [{ name: it.name, qty: it.qty, price: +price.toFixed(2), subtotal: +amount.toFixed(2) }];
+    } else {
+      items = rawItems.map(it => ({ name: it.name, qty: it.qty, price: 0, subtotal: 0 }));
+    }
+  } else if (amount != null) {
+    items = [{ name: '(汇总)', qty: 1, price: +amount.toFixed(2), subtotal: +amount.toFixed(2) }];
+  }
+  result.supplier = supplier;
+  result.amount = amount;
+  result.items = items;
+  result.orderNo = '';
+  result.note = '智能录入';
+  return result;
+}
+
+function smartParse() {
+  const raw = document.getElementById('smartInput').value;
+  const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const list = [];
+  lines.forEach(line => {
+    // 多行合并为一个订单块（若一行以「、」或「，」连接多个商品，仍按整行解析）
+    const p = parseWeChatMessage(line);
+    if (p) list.push(p);
+  });
+  smartList = list;
+  document.getElementById('smartHint').textContent = list.length ? ('已识别 ' + list.length + ' 条，请核对后录入') : '未识别到内容，请检查格式';
+  renderSmartResults();
+}
+
+function smartClear() {
+  document.getElementById('smartInput').value = '';
+  smartList = [];
+  document.getElementById('smartHint').textContent = '';
+  renderSmartResults();
+}
+
+function renderSmartResults() {
+  const box = document.getElementById('smartResults');
+  if (!smartList.length) { box.innerHTML = ''; return; }
+  const labels = { meal: '盒饭', delivery: '公司送菜', inventory: '超市采购' };
+  box.innerHTML = smartList.map((p, idx) => {
+    let fields = '';
+    if (p.type === 'meal') {
+      fields =
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">份数</label>' +
+        '<input id="smartQty_' + idx + '" type="number" min="1" class="form-input" value="' + p.quantity + '">';
+    } else if (p.type === 'delivery') {
+      fields =
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">商品</label>' +
+        '<input id="smartProd_' + idx + '" class="form-input" value="' + escapeHtml(p.product || '') + '">' +
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">金额(元)</label>' +
+        '<input id="smartAmt_' + idx + '" type="number" step="0.01" class="form-input" value="' + (p.amount != null ? p.amount : '') + '">';
+    } else {
+      fields =
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">供应商</label>' +
+        '<input id="smartSup_' + idx + '" class="form-input" value="' + escapeHtml(p.supplier || '') + '">' +
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">金额(元)</label>' +
+        '<input id="smartAmt_' + idx + '" type="number" step="0.01" class="form-input" value="' + (p.amount != null ? p.amount : '') + '">';
+    }
+    let preview;
+    if (p.type === 'meal') {
+      preview = p.date + ' ｜ 盒饭 ' + p.quantity + '份 × 12 = ' + p.totalAmount + '元';
+    } else if (p.type === 'delivery') {
+      preview = p.date + ' ｜ 送菜：' + (p.product || '') + ' ｜ ' + (p.amount != null ? p.amount : '?') + '元';
+    } else {
+      preview = p.date + ' ｜ ' + (p.supplier || '') + ' ｜ 金额 ' + (p.amount != null ? p.amount : '?') + '元 ｜ 明细 ' + ((p.items || []).map(i => i.name + i.qty + i.unit).join('、') || '（汇总）');
+    }
+    return '<div class="card" style="margin-bottom:14px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+        '<span style="display:inline-block;padding:2px 9px;border-radius:999px;background:#eaf8f4;color:#0c7b6c;font-size:12px;font-weight:700;">' + labels[p.type] + '</span>' +
+        '<span class="text-muted">' + escapeHtml(preview) + '</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' + fields + '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:12px;">' +
+        '<button class="btn btn-primary" onclick="confirmSmart(' + idx + ')">确认录入</button>' +
+        '<button class="btn btn-outline" onclick="discardSmart(' + idx + ')">丢弃</button>' +
+      '</div>' +
+      '<div class="text-muted" style="margin-top:8px;font-size:12px;">原文：' + escapeHtml(p.raw) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function confirmSmart(idx) {
+  const p = smartList[idx];
+  if (!p) return;
+  if (p.type === 'meal') {
+    const q = parseInt(document.getElementById('smartQty_' + idx).value, 10);
+    if (!q || q < 1) { showToast('请填写有效份数', 'error'); return; }
+    p.quantity = q; p.unitPrice = 12; p.totalAmount = q * 12;
+  } else if (p.type === 'delivery') {
+    p.product = (document.getElementById('smartProd_' + idx).value || '').trim() || (p.product || '送菜');
+    p.amount = parseFloat(document.getElementById('smartAmt_' + idx).value);
+    if (isNaN(p.amount)) { showToast('请填写金额', 'error'); return; }
+  } else {
+    p.supplier = (document.getElementById('smartSup_' + idx).value || '').trim() || p.supplier;
+    p.amount = parseFloat(document.getElementById('smartAmt_' + idx).value);
+    if (isNaN(p.amount)) { showToast('请填写金额', 'error'); return; }
+    if (p.items && p.items.length) {
+      const totalQty = p.items.reduce((s, i) => s + i.qty, 0);
+      p.items.forEach(it => {
+        const sub = totalQty ? p.amount * it.qty / totalQty : 0;
+        it.subtotal = +sub.toFixed(2);
+        it.price = it.qty ? +(sub / it.qty).toFixed(2) : 0;
+      });
+    } else {
+      p.items = [{ name: '(汇总)', qty: 1, price: +p.amount.toFixed(2), subtotal: +p.amount.toFixed(2) }];
+    }
+  }
+  await autoCreateRecord(p);
+  smartList.splice(idx, 1);
+  renderSmartResults();
+  if (!smartList.length) document.getElementById('smartHint').textContent = '已录入完成';
+}
+
+function discardSmart(idx) {
+  smartList.splice(idx, 1);
+  renderSmartResults();
+}
+
+async function autoCreateRecord(p) {
+  if (p.type === 'meal') {
+    const records = getData('sw_meal');
+    records.unshift({ id: genId('m'), date: p.date, mealType: '晚餐', quantity: p.quantity, unitPrice: p.unitPrice, totalAmount: p.totalAmount, notes: p.note || '' });
+    await setData('sw_meal', records);
+    addActivity('智能录入盒饭: ' + p.date + ' ' + p.quantity + '份 ' + p.totalAmount + '元');
+    renderMealRecords(); renderMealStats();
+  } else if (p.type === 'delivery') {
+    const records = getData('sw_delivery');
+    records.unshift({ id: genId('d'), date: p.date, product: p.product, amount: p.amount, note: p.note });
+    await setData('sw_delivery', records);
+    addActivity('智能录入送菜: ' + p.product + ' ' + p.amount + '元');
+    renderDeliveryRecords(); renderDeliveryStats();
+  } else {
+    const records = getData('sw_inventory');
+    records.unshift({ id: genId('inv'), date: p.date, supplier: p.supplier, orderNo: p.orderNo || '', amount: p.amount, note: p.note, payment: '未结', items: p.items || [] });
+    await setData('sw_inventory', records);
+    addActivity('智能录入进货: ' + p.supplier + ' ' + (p.amount != null ? formatMoney(p.amount) : '') + '元');
+    renderSupplierRecords();
+  }
+  showToast('已录入');
+}
+
 // Start
 (async function() { await init(); })();
 </script>
 </body>
-</html>
+  </html>
