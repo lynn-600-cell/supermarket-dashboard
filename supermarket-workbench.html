@@ -2649,11 +2649,27 @@ async function setData(key, data) {
     const existing = await checkResp.json();
 
     if (existing.length > 0) {
+      let dataToWrite = data;
+      // 对 sw_inventory 做保护：PATCH 前从云端拉完整数据，合并本地缺失的记录
+      if (key === 'sw_inventory') {
+        try {
+          const fullResp = await fetch(`${SUPABASE_API}?store_key=eq.${key}&select=data`, { headers: SUPABASE_HEADERS, mode: 'cors' });
+          const fullData = await fullResp.json();
+          if (fullData.length > 0 && fullData[0].data) {
+            const cloudIds = new Set(fullData[0].data.map(r => r.id));
+            const localIds = new Set(data.map(r => r.id));
+            const missed = fullData[0].data.filter(r => !localIds.has(r.id));
+            if (missed.length > 0) {
+              dataToWrite = [...data, ...missed];
+            }
+          }
+        } catch(e) { console.warn('sw_inventory merge failed, using local data'); }
+      }
       // UPDATE
       await fetch(`${SUPABASE_API}?id=eq.${existing[0].id}`, {
         method: 'PATCH',
         headers: SUPABASE_HEADERS,
-        body: JSON.stringify({ data: data, updated_at: new Date().toISOString() })
+        body: JSON.stringify({ data: dataToWrite, updated_at: new Date().toISOString() })
       });
     } else {
       // INSERT
