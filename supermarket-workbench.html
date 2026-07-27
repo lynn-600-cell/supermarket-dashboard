@@ -2766,7 +2766,9 @@ async function ensureLiuliangPurchase0715() {
     record.id === LIULIANG_0715_ID || record.orderNo === expected.orderNo
   );
   const canonical = matches[0];
-  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const _isDataURL = (v) => Array.isArray(v) && v.length && typeof v[0] === 'string' && v[0].startsWith('data:image');
+  const keepImage = canonical && _isDataURL(canonical.image) ? canonical.image : expected.image;
+  const updatedRecord = canonical ? { ...canonical, ...expected, image: keepImage } : expected;
   const updated = [
     updatedRecord,
     ...records.filter(record =>
@@ -2793,7 +2795,9 @@ async function ensureDinghePurchase0713() {
   };
   const matches = records.filter(record => record.id === DINGHE_0713_ID || record.orderNo === expected.orderNo);
   const canonical = matches[0];
-  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const _isDataURL = (v) => Array.isArray(v) && v.length && typeof v[0] === 'string' && v[0].startsWith('data:image');
+  const keepImage = canonical && _isDataURL(canonical.image) ? canonical.image : expected.image;
+  const updatedRecord = canonical ? { ...canonical, ...expected, image: keepImage } : expected;
   delete updatedRecord.originalAmount;
   delete updatedRecord.discountAmount;
   const updated = [updatedRecord, ...records.filter(record => record !== canonical && record.id !== DINGHE_0713_ID && record.orderNo !== expected.orderNo)];
@@ -2828,7 +2832,9 @@ async function ensureXuelilaiPurchase0714() {
     record.id === XUELILAI_0714_ID || record.orderNo === expected.orderNo
   );
   const canonical = matches[0];
-  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const _isDataURL = (v) => Array.isArray(v) && v.length && typeof v[0] === 'string' && v[0].startsWith('data:image');
+  const keepImage = canonical && _isDataURL(canonical.image) ? canonical.image : expected.image;
+  const updatedRecord = canonical ? { ...canonical, ...expected, image: keepImage } : expected;
   const updated = [
     updatedRecord,
     ...records.filter(record =>
