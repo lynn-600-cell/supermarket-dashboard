@@ -217,39 +217,10 @@ body {
 .sync-connected { color: var(--success-text); }
 .sync-syncing { color: var(--warning-text); }
 .sync-offline { color: #E11D48; }
-
-.reload-cloud-btn {
-  width: 100%;
-  margin-bottom: 8px;
-  padding: 8px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  font-family: 'Quicksand', sans-serif;
-  color: #fff;
-  background: linear-gradient(135deg, #B794F6, #9F7AEA);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: opacity .15s ease;
-}
-.reload-cloud-btn:hover { opacity: .9; }
-.sync-warn {
-  display: none;
-  margin-bottom: 8px;
-  padding: 8px 10px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: #92400E;
-  background: #FEF3C7;
-  border: 1px solid #FDE68A;
-  border-radius: 10px;
-}
-.sync-warn code {
-  font-family: monospace;
-  background: rgba(0,0,0,0.05);
-  padding: 1px 4px;
-  border-radius: 4px;
-}
+.reload-cloud-btn { width:100%; margin-top:8px; padding:6px 10px; border:1px solid #ddd; border-radius:8px; background:#f8fafc; color:#334155; font-size:12px; cursor:pointer; }
+.reload-cloud-btn:hover { background:#eef2f7; }
+.reload-cloud-btn:disabled { opacity:.6; cursor:default; }
+.sync-warn { display:none; margin-top:8px; padding:6px 8px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:8px; font-size:11px; line-height:1.4; }
 
 /* Main Content */
 .main {
@@ -1187,12 +1158,17 @@ select::-ms-expand {
       <div class="nav-icon">&#9733;</div>
       <span class="nav-label">盒饭预定</span>
     </div>
+    <div class="nav-item" data-page="smart" onclick="switchPage('smart')">
+      <div class="nav-icon">&#9889;</div>
+      <span class="nav-label">智能录入</span>
+    </div>
   </nav>
   <div class="sidebar-footer">
     <div id="syncIndicator" class="sync-indicator sync-offline">
       <span class="sync-icon">&#9729;</span> 离线模式
     </div>
     <button id="reloadCloudBtn" class="reload-cloud-btn" onclick="reloadFromCloud()">从云端重新加载</button>
+    <button id="restoreSnapshotBtn" class="reload-cloud-btn" style="background:#A5D6A7;color:#1B5E20;" onclick="previewSnapshot()">恢复上一版本</button>
     <div id="syncWarn" class="sync-warn" style="display:none;"></div>
     <div id="sidebarDate"></div>
   </div>
@@ -1506,6 +1482,37 @@ select::-ms-expand {
         </div>
       </div>
     </div>
+
+  <div class="page" id="page-smart">
+    <div style="margin-bottom:18px;">
+      <h1 style="margin:0 0 6px;font-size:24px;">智能录入</h1>
+      <p class="text-muted" style="margin:0;">把微信 / 供货商发来的消息粘贴到这里，自动识别类型、日期、金额、商品，确认后一键写入对应模块。支持一次粘贴多条（每行一条）。</p>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <label class="form-label" style="display:block;margin-bottom:8px;font-weight:600;">粘贴消息</label>
+      <textarea id="smartInput" class="form-input" style="width:100%;min-height:140px;resize:vertical;font-family:inherit;padding:10px;" placeholder="例：&#10;7月22日 恒宇 西红柿50斤 200元&#10;送菜 公司 7月21日 青菜 150元&#10;盒饭 7月22日 5份"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="smartParse()">解析消息</button>
+        <button class="btn btn-outline" onclick="smartClear()">清空</button>
+        <span class="text-muted" id="smartHint"></span>
+      </div>
+    </div>
+
+    <div id="smartResults"></div>
+
+    <details class="card" style="margin-top:18px;">
+      <summary style="cursor:pointer;font-weight:600;">解析规则说明</summary>
+      <ul style="margin:12px 0 0;line-height:1.9;">
+        <li>含「盒饭」或「N份」→ 写入 <b>盒饭</b>（单价默认 12 元）</li>
+        <li>含「送菜 / 配送 / 送餐」→ 写入 <b>公司送菜</b>（需金额）</li>
+        <li>其余（含供应商名+商品+斤/个/箱）→ 写入 <b>超市采购</b>，金额由明细合计</li>
+        <li>日期支持「今天 / 昨天 / 7月22日 / 2026-07-22」</li>
+        <li>金额取「N元 / ¥N / 共N元」；含「退 / 返 / 冲减」记为负数</li>
+        <li>识别不准的字段可在卡片里直接改，再点「确认录入」</li>
+      </ul>
+    </details>
+  </div>
 
   </div><!-- /content -->
 </div><!-- /main -->
@@ -2192,7 +2199,7 @@ const PENDING_BILLS_SEED = [
   {id:"b12",supplier:"林兴",month:"2026年4-5月",reconciled:true,sentToBoss:true,paid:true,amount:567,note:"已结款"},
   {id:"b13",supplier:"恒宇",month:"2026年3-5月",reconciled:true,sentToBoss:true,paid:true,paidDate:"2026-07-13",amount:1320.67,note:"扣退货",fundFromDelivery:true},
   {id:"b14",supplier:"鑫穗",month:"2026年3-5月",reconciled:true,sentToBoss:true,paid:false,amount:2061,note:""},
-  {id:"b15",supplier:"百真汇",month:"2026年6月",reconciled:true,sentToBoss:true,paid:true,amount:569.81,grossAmount:599.80,rebateRate:0.05,rebateAmount:29.99,note:"对账汇总599.80元，扣5%返点29.99元，实付569.81元，已结款"}
+  {id:"b15",supplier:"百真汇",month:"2026年6月",reconciled:true,sentToBoss:true,paid:true,amount:618.26,note:"已扣5%返点，已结款"}
 ];
 
 const SUPPLIERS = ["自采","洪湖","能有食品","百真汇","鼎合","吉彩","鑫穗","湘槟王","百事利","恒宇","大唐","金江","送菜","皇爷","芳宇","承信","雪利来","瑞南","素全","慧成食品","柳粮","哲浩","林兴","瑞南百事","广寒宫","浩楠冷冻","易粮","泽沛","其味之王","享美稻","南宁世尊","正味","庚龙商贸","琥珀酒业","湘兵王","蒙胜","辉茂贸易","盐业","科顿","陈氏华达","首丰"];
@@ -2447,25 +2454,26 @@ let syncStatus = 'offline'; // 'connected' | 'syncing' | 'offline'
 function updateSyncUI(status, reason) {
   syncStatus = status;
   const el = document.getElementById('syncIndicator');
-  const warnEl = document.getElementById('syncWarn');
-  if (el) {
-    if (status === 'connected') {
-      el.className = 'sync-indicator sync-connected';
-      el.innerHTML = '<span class="sync-icon">&#9729;</span> 已连接';
-    } else if (status === 'syncing') {
-      el.className = 'sync-indicator sync-syncing';
-      el.innerHTML = '<span class="sync-icon">&#9729;</span> 同步中...';
-    } else {
-      el.className = 'sync-indicator sync-offline';
-      el.innerHTML = '<span class="sync-icon">&#9729;</span> 离线模式';
-    }
+  if (!el) return;
+  if (status === 'connected') {
+    el.className = 'sync-indicator sync-connected';
+    el.innerHTML = '<span class="sync-icon">&#9729;</span> 已连接';
+  } else if (status === 'syncing') {
+    el.className = 'sync-indicator sync-syncing';
+    el.innerHTML = '<span class="sync-icon">&#9729;</span> 同步中...';
+  } else {
+    el.className = 'sync-indicator sync-offline';
+    let txt = '离线模式';
+    if (reason) txt += '：' + reason;
+    el.innerHTML = '<span class="sync-icon">&#9729;</span> ' + txt;
   }
-  if (warnEl) {
+  const warn = document.getElementById('syncWarn');
+  if (warn) {
     if (status === 'offline' && reason) {
-      warnEl.style.display = 'block';
-      warnEl.innerHTML = reason;
+      warn.style.display = 'block';
+      warn.textContent = '⚠️ ' + reason;
     } else {
-      warnEl.style.display = 'none';
+      warn.style.display = 'none';
     }
   }
 }
@@ -2479,23 +2487,28 @@ async function initCloudSync() {
   let hasError = false;
   let successCount = 0;
   const stores = ['sw_inventory','sw_delivery','sw_meal','sw_supplier','sw_delivery_monthly','sw_monthly_summary','sw_activity','sw_settings'];
-  
-  // 先测试连接（带超时，避免沙箱/无网络环境下永久卡在“同步中”）
+
+  const TIMEOUT_MS = 8000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  // 先测试连接
   try {
     const testResp = await fetch(`${SUPABASE_API}?select=store_key&limit=1`, { 
       headers: SUPABASE_HEADERS,
       mode: 'cors',
       signal: controller.signal
     });
-    clearTimeout(timeoutId);
     if (!testResp.ok) {
       throw new Error('Connection test failed');
     }
   } catch (e) {
-    clearTimeout(timeoutId);
+    clearTimeout(timer);
     console.warn('Supabase connection test failed:', e);
+    let reason = '网络不可达或被拦截';
+    if (e && e.name === 'AbortError') reason = '连接超时（' + (TIMEOUT_MS / 1000) + ' 秒）';
+    else if (location.protocol === 'file:') reason = '以 file:// 打开，浏览器可能拦截云端同步，建议改用本地服务器';
+    else if (e instanceof TypeError) reason = '跨域/网络被浏览器拦截';
     // 降级到 localStorage
     stores.forEach(key => {
       const val = localStorage.getItem(key);
@@ -2503,19 +2516,11 @@ async function initCloudSync() {
         try { localCache[key] = JSON.parse(val); } catch(ex) { localCache[key] = []; }
       }
     });
-    // 给出可读的失败原因，方便用户定位
-    let reason = '离线：无法连接到云端（网络不可达、被拦截或超时）。';
-    if (location.protocol === 'file:') {
-      reason = '离线：以 file:// 方式打开，浏览器可能拦截了云端同步。建议改用本地服务器打开（如 <code>python3 -m http.server</code>）。';
-    } else if (e && e.name === 'AbortError') {
-      reason = '离线：连接云端超时（8 秒无响应），可能是网络不通或被拦截。';
-    } else if (e && e.name === 'TypeError') {
-      reason = '离线：网络请求被浏览器阻止（CORS / 跨域）。请检查网络或改用本地服务器打开。';
-    }
     updateSyncUI('offline', reason);
     return;
   }
-  
+  clearTimeout(timer);
+
   // 连接正常，同步所有数据
   for (const key of stores) {
     try {
@@ -2540,9 +2545,9 @@ async function initCloudSync() {
       }
     }
   }
-  
+
   if (successCount === 0) {
-    updateSyncUI('offline', '离线：所有数据同步均失败（网络不可达或被拦截）。');
+    updateSyncUI('offline', '未能从云端获取任何数据');
   } else if (hasError) {
     console.warn('Cloud sync partially completed');
     updateSyncUI('connected'); // 部分成功也算连接
@@ -2552,15 +2557,76 @@ async function initCloudSync() {
   }
 }
 
-// 手动从云端重新加载全部数据（让“从云端重新加载”按钮真正生效）
-async function reloadFromCloud() {
-  updateSyncUI('syncing');
-  localCache = {};
-  await initCloudSync();
-  // 重新渲染当前所在页面
+// ======================== 数据快照（恢复上一版本）========================
+const SNAPSHOT_KEY = 'sw_snapshot';
+const DATA_KEYS = ['sw_inventory', 'sw_supplier', 'sw_delivery', 'sw_meal', 'sw_settings', 'sw_activity'];
+
+function saveSnapshot() {
+  try {
+    const snap = { time: new Date().toISOString(), data: {} };
+    DATA_KEYS.forEach(k => {
+      const v = localStorage.getItem(k);
+      if (v) snap.data[k] = JSON.parse(v);
+    });
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap));
+  } catch(e) { console.warn('快照保存失败:', e); }
+}
+
+function previewSnapshot() {
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
+  if (!raw) { alert('没有可恢复的快照（首次打开页面时会自动创建）'); return; }
+  const snap = JSON.parse(raw);
+  const timeStr = new Date(snap.time).toLocaleString('zh-CN');
+  const names = { sw_inventory:'采购进货', sw_supplier:'待对账', sw_delivery:'送菜登记', sw_meal:'盒饭', sw_settings:'设置', sw_activity:'操作日志' };
+  let summary = '';
+  DATA_KEYS.forEach(k => {
+    if (snap.data[k]) {
+      const n = Array.isArray(snap.data[k]) ? snap.data[k].length : 1;
+      summary += '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>' + (names[k]||k) + '</span><b>' + n + ' 条</b></div>';
+    }
+  });
+  const modal = document.createElement('div');
+  modal.id = 'snapshotModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);">' +
+    '<h3 style="margin:0 0 8px;font-size:18px;color:#333;">恢复上一版本</h3>' +
+    '<p style="color:#888;font-size:13px;margin:0 0 16px;">快照时间：' + timeStr + '</p>' +
+    '<div style="background:#f5f5f5;border-radius:8px;padding:14px;font-size:13px;color:#444;">' + summary + '</div>' +
+    '<p style="color:#aaa;font-size:12px;margin:12px 0 0;">确认后将用快照数据覆盖当前数据并同步云端。</p>' +
+    '<div style="display:flex;gap:12px;margin-top:20px;">' +
+    '<button onclick="document.getElementById(\'snapshotModal\').remove()" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;">取消</button>' +
+    '<button onclick="restoreSnapshot()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#A5D6A7;color:#1B5E20;cursor:pointer;font-size:14px;font-weight:600;">确认恢复</button>' +
+    '</div></div>';
+  document.body.appendChild(modal);
+}
+
+async function restoreSnapshot() {
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
+  if (!raw) { alert('没有可恢复的快照'); return; }
+  const snap = JSON.parse(raw);
+  document.getElementById('snapshotModal')?.remove();
+  for (const k of DATA_KEYS) {
+    if (snap.data[k] !== undefined) {
+      localCache[k] = snap.data[k];
+      localStorage.setItem(k, JSON.stringify(snap.data[k]));
+      try { await setData(k, snap.data[k]); } catch(e) {}
+    }
+  }
   const active = document.querySelector('.nav-item.active');
   const page = active ? active.getAttribute('data-page') : 'dashboard';
   if (page) switchPage(page);
+  alert('已恢复到 ' + new Date(snap.time).toLocaleString('zh-CN') + ' 的数据');
+}
+
+// 手动从云端重新加载（自动同步失败后的兜底重试）
+async function reloadFromCloud() {
+  const btn = document.getElementById('reloadCloudBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '重新加载中...'; }
+  await initCloudSync();
+  const active = document.querySelector('.nav-item.active');
+  const page = active ? active.getAttribute('data-page') : 'dashboard';
+  if (typeof switchPage === 'function') switchPage(page || 'dashboard');
+  if (btn) { btn.disabled = false; btn.textContent = '从云端重新加载'; }
 }
 
 // ======================== LOCAL STORAGE (with cloud sync) ========================
@@ -2686,7 +2752,9 @@ async function ensureLiuliangPurchase0715() {
     record.id === LIULIANG_0715_ID || record.orderNo === expected.orderNo
   );
   const canonical = matches[0];
-  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const _isDataURL = (v) => Array.isArray(v) && v.length && typeof v[0] === 'string' && v[0].startsWith('data:image');
+  const keepImage = canonical && _isDataURL(canonical.image) ? canonical.image : expected.image;
+  const updatedRecord = canonical ? { ...canonical, ...expected, image: keepImage } : expected;
   const updated = [
     updatedRecord,
     ...records.filter(record =>
@@ -2713,7 +2781,9 @@ async function ensureDinghePurchase0713() {
   };
   const matches = records.filter(record => record.id === DINGHE_0713_ID || record.orderNo === expected.orderNo);
   const canonical = matches[0];
-  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const _isDataURL = (v) => Array.isArray(v) && v.length && typeof v[0] === 'string' && v[0].startsWith('data:image');
+  const keepImage = canonical && _isDataURL(canonical.image) ? canonical.image : expected.image;
+  const updatedRecord = canonical ? { ...canonical, ...expected, image: keepImage } : expected;
   delete updatedRecord.originalAmount;
   delete updatedRecord.discountAmount;
   const updated = [updatedRecord, ...records.filter(record => record !== canonical && record.id !== DINGHE_0713_ID && record.orderNo !== expected.orderNo)];
@@ -2748,7 +2818,9 @@ async function ensureXuelilaiPurchase0714() {
     record.id === XUELILAI_0714_ID || record.orderNo === expected.orderNo
   );
   const canonical = matches[0];
-  const updatedRecord = canonical ? { ...canonical, ...expected } : expected;
+  const _isDataURL = (v) => Array.isArray(v) && v.length && typeof v[0] === 'string' && v[0].startsWith('data:image');
+  const keepImage = canonical && _isDataURL(canonical.image) ? canonical.image : expected.image;
+  const updatedRecord = canonical ? { ...canonical, ...expected, image: keepImage } : expected;
   const updated = [
     updatedRecord,
     ...records.filter(record =>
@@ -2914,8 +2986,8 @@ async function ensureDelivery2478112To2478115() {
     },
     {
       id: 'delivery_2478115', date: '2026-07-21', orderNo: '2478115',
-      product: '大葱-小米辣-洋葱-黄瓜-青瓜-泡椒姜-牛肉-菜心-苦瓜-空心菜-老豆腐-鸡翅-西红柿-哈密瓜-油桃',
-      amount: 223.60, image: 'delivery_2478115.jpeg'
+      product: '大葱-小米辣-洋葱-葱花-青瓜-泡椒姜-牛肉-菜心-苦瓜-空心菜-老豆腐-鸡翅-西红柿-哈密瓜-番桃',
+      amount: 255.1, image: 'delivery_2478115.jpeg'
     }
   ];
   const expectedById = new Map(expectedRecords.map(record => [record.id, record]));
@@ -5245,6 +5317,7 @@ function updateDates() {
 
 async function init() {
   await initCloudSync();
+  saveSnapshot();
   setupImageDropZones();
 
   // 云同步后立即补录并展示恒宇退货，避免后续异步种子保存阻塞首屏可见性。
@@ -5306,6 +5379,10 @@ async function init() {
   });
 }
 
+// ======================== 智能录入（微信/供货商消息自动解析） ========================
+PAGE_TITLES['smart'] = '智能录入';
+
+let smartList = [];
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function fmtDateObj(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -5334,8 +5411,218 @@ function smartExtractAmount(text) {
   return neg ? -v : v;
 }
 
+function smartExtractSupplier(text) {
+  if (typeof SUPPLIERS !== 'undefined' && Array.isArray(SUPPLIERS)) {
+    for (const s of SUPPLIERS) { if (s && text.includes(s)) return matchSupplierName(s); }
+  }
+  const cleaned = text.replace(/今天|昨天|\d{4}[年\-/]\d{1,2}[月\-/]\d{1,2}|\d{1,2}月\d{1,2}[日号]?|[0-9.]+元|[0-9.]+块|[¥￥]\d+|\d+份|\d+斤|\d+个|\d+箱|送菜|配送|送餐|盒饭|采购|进货|退货|公司|共|合计|总计|合计|退回|冲减/g, ' ').trim();
+  const tok = cleaned.split(/\s+/)[0];
+  return tok ? matchSupplierName(tok) : null;
+}
+
+function smartParseItems(text) {
+  const re = /([一-龥A-Za-z0-9]+?)(\d+(?:\.\d+)?)(斤|个|箱|袋|包|瓶|根|把|份|kg|KG|克|只|条|筐|桶)/g;
+  const items = []; let m;
+  while ((m = re.exec(text)) !== null) {
+    items.push({ name: m[1], qty: parseFloat(m[2]), unit: m[3] });
+  }
+  return items;
+}
+
+function detectSmartType(text) {
+  if (/盒饭/.test(text) || (/\d+\s*份/.test(text) && !/送菜|配送|送餐/.test(text))) return 'meal';
+  if (/送菜|配送|送餐/.test(text)) return 'delivery';
+  return 'inventory';
+}
+
+function parseWeChatMessage(raw) {
+  const text = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  const type = detectSmartType(text);
+  const date = smartExtractDate(text);
+  const result = { raw: raw, type: type, date: date };
+
+  if (type === 'meal') {
+    const qm = text.match(/(\d+)\s*份/);
+    const quantity = qm ? parseInt(qm[1], 10) : 1;
+    result.quantity = quantity;
+    result.unitPrice = 12;
+    result.totalAmount = quantity * 12;
+    result.note = '智能录入';
+    return result;
+  }
+
+  if (type === 'delivery') {
+    const amount = smartExtractAmount(text);
+    const product = text
+      .replace(/今天|昨天|\d{4}[年\-/]\d{1,2}[月\-/]\d{1,2}|\d{1,2}月\d{1,2}[日号]?/g, ' ')
+      .replace(/[0-9.]+元|[0-9.]+块|[¥￥]\d+|共|合计|总计|送菜|配送|送餐|公司|退回|冲减/g, ' ')
+      .replace(/\d+(?:\.\d+)?/g, ' ').trim() || '送菜';
+    result.product = product;
+    result.amount = amount;
+    result.note = '智能录入';
+    return result;
+  }
+
+  // inventory（采购/退货）
+  const supplier = smartExtractSupplier(text) || '未识别';
+  const amount = smartExtractAmount(text);
+  const rawItems = smartParseItems(text);
+  let items = [];
+  if (rawItems.length) {
+    if (amount != null && rawItems.length > 1) {
+      const totalQty = rawItems.reduce((s, i) => s + i.qty, 0);
+      items = rawItems.map(it => {
+        const subtotal = totalQty ? amount * it.qty / totalQty : 0;
+        return { name: it.name, qty: it.qty, price: it.qty ? +(subtotal / it.qty).toFixed(2) : 0, subtotal: +subtotal.toFixed(2) };
+      });
+    } else if (rawItems.length === 1 && amount != null) {
+      const it = rawItems[0];
+      const price = it.qty ? amount / it.qty : amount;
+      items = [{ name: it.name, qty: it.qty, price: +price.toFixed(2), subtotal: +amount.toFixed(2) }];
+    } else {
+      items = rawItems.map(it => ({ name: it.name, qty: it.qty, price: 0, subtotal: 0 }));
+    }
+  } else if (amount != null) {
+    items = [{ name: '(汇总)', qty: 1, price: +amount.toFixed(2), subtotal: +amount.toFixed(2) }];
+  }
+  result.supplier = supplier;
+  result.amount = amount;
+  result.items = items;
+  result.orderNo = '';
+  result.note = '智能录入';
+  return result;
+}
+
+function smartParse() {
+  const raw = document.getElementById('smartInput').value;
+  const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const list = [];
+  lines.forEach(line => {
+    // 多行合并为一个订单块（若一行以「、」或「，」连接多个商品，仍按整行解析）
+    const p = parseWeChatMessage(line);
+    if (p) list.push(p);
+  });
+  smartList = list;
+  document.getElementById('smartHint').textContent = list.length ? ('已识别 ' + list.length + ' 条，请核对后录入') : '未识别到内容，请检查格式';
+  renderSmartResults();
+}
+
+function smartClear() {
+  document.getElementById('smartInput').value = '';
+  smartList = [];
+  document.getElementById('smartHint').textContent = '';
+  renderSmartResults();
+}
+
+function renderSmartResults() {
+  const box = document.getElementById('smartResults');
+  if (!smartList.length) { box.innerHTML = ''; return; }
+  const labels = { meal: '盒饭', delivery: '公司送菜', inventory: '超市采购' };
+  box.innerHTML = smartList.map((p, idx) => {
+    let fields = '';
+    if (p.type === 'meal') {
+      fields =
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">份数</label>' +
+        '<input id="smartQty_' + idx + '" type="number" min="1" class="form-input" value="' + p.quantity + '">';
+    } else if (p.type === 'delivery') {
+      fields =
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">商品</label>' +
+        '<input id="smartProd_' + idx + '" class="form-input" value="' + escapeHtml(p.product || '') + '">' +
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">金额(元)</label>' +
+        '<input id="smartAmt_' + idx + '" type="number" step="0.01" class="form-input" value="' + (p.amount != null ? p.amount : '') + '">';
+    } else {
+      fields =
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">供应商</label>' +
+        '<input id="smartSup_' + idx + '" class="form-input" value="' + escapeHtml(p.supplier || '') + '">' +
+        '<label class="form-label" style="display:block;margin:6px 0 4px;">金额(元)</label>' +
+        '<input id="smartAmt_' + idx + '" type="number" step="0.01" class="form-input" value="' + (p.amount != null ? p.amount : '') + '">';
+    }
+    let preview;
+    if (p.type === 'meal') {
+      preview = p.date + ' ｜ 盒饭 ' + p.quantity + '份 × 12 = ' + p.totalAmount + '元';
+    } else if (p.type === 'delivery') {
+      preview = p.date + ' ｜ 送菜：' + (p.product || '') + ' ｜ ' + (p.amount != null ? p.amount : '?') + '元';
+    } else {
+      preview = p.date + ' ｜ ' + (p.supplier || '') + ' ｜ 金额 ' + (p.amount != null ? p.amount : '?') + '元 ｜ 明细 ' + ((p.items || []).map(i => i.name + i.qty + i.unit).join('、') || '（汇总）');
+    }
+    return '<div class="card" style="margin-bottom:14px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+        '<span style="display:inline-block;padding:2px 9px;border-radius:999px;background:#eaf8f4;color:#0c7b6c;font-size:12px;font-weight:700;">' + labels[p.type] + '</span>' +
+        '<span class="text-muted">' + escapeHtml(preview) + '</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' + fields + '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:12px;">' +
+        '<button class="btn btn-primary" onclick="confirmSmart(' + idx + ')">确认录入</button>' +
+        '<button class="btn btn-outline" onclick="discardSmart(' + idx + ')">丢弃</button>' +
+      '</div>' +
+      '<div class="text-muted" style="margin-top:8px;font-size:12px;">原文：' + escapeHtml(p.raw) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function confirmSmart(idx) {
+  const p = smartList[idx];
+  if (!p) return;
+  if (p.type === 'meal') {
+    const q = parseInt(document.getElementById('smartQty_' + idx).value, 10);
+    if (!q || q < 1) { showToast('请填写有效份数', 'error'); return; }
+    p.quantity = q; p.unitPrice = 12; p.totalAmount = q * 12;
+  } else if (p.type === 'delivery') {
+    p.product = (document.getElementById('smartProd_' + idx).value || '').trim() || (p.product || '送菜');
+    p.amount = parseFloat(document.getElementById('smartAmt_' + idx).value);
+    if (isNaN(p.amount)) { showToast('请填写金额', 'error'); return; }
+  } else {
+    p.supplier = (document.getElementById('smartSup_' + idx).value || '').trim() || p.supplier;
+    p.amount = parseFloat(document.getElementById('smartAmt_' + idx).value);
+    if (isNaN(p.amount)) { showToast('请填写金额', 'error'); return; }
+    if (p.items && p.items.length) {
+      const totalQty = p.items.reduce((s, i) => s + i.qty, 0);
+      p.items.forEach(it => {
+        const sub = totalQty ? p.amount * it.qty / totalQty : 0;
+        it.subtotal = +sub.toFixed(2);
+        it.price = it.qty ? +(sub / it.qty).toFixed(2) : 0;
+      });
+    } else {
+      p.items = [{ name: '(汇总)', qty: 1, price: +p.amount.toFixed(2), subtotal: +p.amount.toFixed(2) }];
+    }
+  }
+  await autoCreateRecord(p);
+  smartList.splice(idx, 1);
+  renderSmartResults();
+  if (!smartList.length) document.getElementById('smartHint').textContent = '已录入完成';
+}
+
+function discardSmart(idx) {
+  smartList.splice(idx, 1);
+  renderSmartResults();
+}
+
+async function autoCreateRecord(p) {
+  if (p.type === 'meal') {
+    const records = getData('sw_meal');
+    records.unshift({ id: genId('m'), date: p.date, mealType: '晚餐', quantity: p.quantity, unitPrice: p.unitPrice, totalAmount: p.totalAmount, notes: p.note || '' });
+    await setData('sw_meal', records);
+    addActivity('智能录入盒饭: ' + p.date + ' ' + p.quantity + '份 ' + p.totalAmount + '元');
+    renderMealRecords(); renderMealStats();
+  } else if (p.type === 'delivery') {
+    const records = getData('sw_delivery');
+    records.unshift({ id: genId('d'), date: p.date, product: p.product, amount: p.amount, note: p.note });
+    await setData('sw_delivery', records);
+    addActivity('智能录入送菜: ' + p.product + ' ' + p.amount + '元');
+    renderDeliveryRecords(); renderDeliveryStats();
+  } else {
+    const records = getData('sw_inventory');
+    records.unshift({ id: genId('inv'), date: p.date, supplier: p.supplier, orderNo: p.orderNo || '', amount: p.amount, note: p.note, payment: '未结', items: p.items || [] });
+    await setData('sw_inventory', records);
+    addActivity('智能录入进货: ' + p.supplier + ' ' + (p.amount != null ? formatMoney(p.amount) : '') + '元');
+    renderSupplierRecords();
+  }
+  showToast('已录入');
+}
+
 // Start
 (async function() { await init(); })();
 </script>
 </body>
-  </html>
+</html>
