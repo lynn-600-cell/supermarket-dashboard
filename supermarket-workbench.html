@@ -2484,7 +2484,7 @@ async function initCloudSync() {
   
   // 先测试连接（带超时，避免沙箱/无网络环境下永久卡在“同步中”）
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   try {
     const testResp = await fetch(`${SUPABASE_API}?select=store_key&limit=1`, { 
       headers: SUPABASE_HEADERS,
