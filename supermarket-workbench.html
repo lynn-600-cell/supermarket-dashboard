@@ -1192,8 +1192,9 @@ select::-ms-expand {
     <div id="syncIndicator" class="sync-indicator sync-offline">
       <span class="sync-icon">&#9729;</span> 离线模式
     </div>
-    <button id="reloadCloudBtn" class="reload-cloud-btn" onclick="reloadFromCloud()">从云端重新加载</button>
-    <button id="restoreSnapshotBtn" class="reload-cloud-btn" style="background:#A5D6A7;color:#1B5E20;" onclick="previewSnapshot()">恢复上一版本</button>
+    <button id="reloadCloudBtn" class="reload-cloud-btn" style="background:linear-gradient(135deg,#B794F6,#9F7AEA);color:#fff;" onclick="reloadFromCloud()">从云端重新加载</button>
+    <button id="restoreSnapshotBtn" class="reload-cloud-btn" style="background:linear-gradient(135deg,#B794F6,#9F7AEA);color:#fff;" onclick="previewSnapshot()">恢复上一版本</button>
+    <button class="reload-cloud-btn" style="background:linear-gradient(135deg,#B794F6,#9F7AEA);color:#fff;" onclick="forceSyncToCloud()">强制同步</button>
     <div id="syncWarn" class="sync-warn" style="display:none;"></div>
     <div id="sidebarDate"></div>
   </div>
@@ -2612,6 +2613,28 @@ async function restoreSnapshot() {
   const page = active ? active.getAttribute('data-page') : 'dashboard';
   if (page) switchPage(page);
   alert('已恢复到 ' + new Date(snap.time).toLocaleString('zh-CN') + ' 的数据');
+}
+
+// 强制同步本地数据到云端（绕过合并保护，用于恢复被误删的云端数据）
+async function forceSyncToCloud() {
+  const btns = document.querySelectorAll('button[onclick*="forceSyncToCloud"]');
+  try {
+    const d = localStorage.getItem('sw_inventory');
+    if (!d) { alert('本地无数据'); return; }
+    btns.forEach(b => b.textContent = '同步中...');
+    const r = await fetch('https://tcvtpribepktyhtwiifd.supabase.co/rest/v1/workbench_data?store_key=eq.sw_inventory&select=id', {
+      headers: {apikey:'sb_publishable_k7BAc6YM8dTHSc82nNCVEQ_wmp2bGuV', Authorization:'Bearer sb_publishable_k7BAc6YM8dTHSc82nNCVEQ_wmp2bGuV'}
+    });
+    const e = await r.json();
+    if (!e.length) { alert('云端无记录'); return; }
+    const rr = await fetch('https://tcvtpribepktyhtwiifd.supabase.co/rest/v1/workbench_data?id=eq.'+e[0].id, {
+      method:'PATCH',
+      headers: {apikey:'sb_publishable_k7BAc6YM8dTHSc82nNCVEQ_wmp2bGuV', Authorization:'Bearer sb_publishable_k7BAc6YM8dTHSc82nNCVEQ_wmp2bGuV', 'Content-Type':'application/json', Prefer:'return=minimal'},
+      body: JSON.stringify({data: JSON.parse(d)})
+    });
+    btns.forEach(b => b.textContent = rr.ok ? '已同步!' : '失败');
+    setTimeout(() => btns.forEach(b => b.textContent = '强制同步'), 2000);
+  } catch(ex) { btns.forEach(b => b.textContent = '失败'); alert('错误: '+ex.message); }
 }
 
 // 手动从云端重新加载全部数据（让"从云端重新加载"按钮真正生效）
